@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ionicons/ionicons.dart';
+import 'package:smart_money/utils/date_utils.dart';
 import 'package:smart_money/widgets/action_button.dart';
 import 'package:smart_money/widgets/animated_tab_bar.dart';
 import 'package:smart_money/widgets/custom_card.dart';
+import 'package:smart_money/widgets/period_navigator.dart';
+import 'package:smart_money/widgets/period_picker_dialog.dart';
 import 'package:smart_money/widgets/slide_select.dart';
 
 void main() {
@@ -30,7 +33,9 @@ void main() {
       expect(activeIndex, 1);
     });
 
-    testWidgets('renders 3 text tabs and responds to selection', (tester) async {
+    testWidgets('renders 3 text tabs and responds to selection', (
+      tester,
+    ) async {
       int activeIndex = 1;
 
       await tester.pumpWidget(
@@ -65,16 +70,15 @@ void main() {
   });
 
   group('ActionButton Component Tests', () {
-    testWidgets('renders title and triggers callback when pressed', (tester) async {
+    testWidgets('renders title and triggers callback when pressed', (
+      tester,
+    ) async {
       bool pressed = false;
 
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: ActionButton(
-              title: 'Simpan',
-              onPress: () => pressed = true,
-            ),
+            body: ActionButton(title: 'Simpan', onPress: () => pressed = true),
           ),
         ),
       );
@@ -85,7 +89,9 @@ void main() {
       expect(pressed, true);
     });
 
-    testWidgets('displays loading indicator and blocks taps when isLoading', (tester) async {
+    testWidgets('displays loading indicator and blocks taps when isLoading', (
+      tester,
+    ) async {
       bool pressed = false;
 
       await tester.pumpWidget(
@@ -152,7 +158,9 @@ void main() {
   });
 
   group('SlideSelect Component Tests', () {
-    testWidgets('renders Income and Expense and responds to toggle', (tester) async {
+    testWidgets('renders Income and Expense and responds to toggle', (
+      tester,
+    ) async {
       String selected = 'expense';
 
       await tester.pumpWidget(
@@ -174,5 +182,102 @@ void main() {
       await tester.pumpAndSettle();
       expect(selected, 'income');
     });
+  });
+
+  group('PeriodPicker and PeriodNavigator Component Tests', () {
+    testWidgets(
+      'PeriodPickerSheet displays all 4 period options with active state',
+      (tester) async {
+        ViewMode? picked;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (ctx) => ElevatedButton(
+                  onPressed: () async {
+                    picked = await showPeriodPickerDialog(ctx, ViewMode.month);
+                  },
+                  child: const Text('Open'),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Pilih Rentang Waktu'), findsOneWidget);
+        expect(find.text('Minggu'), findsOneWidget);
+        expect(find.text('Bulan'), findsOneWidget);
+        expect(find.text('Kuartal'), findsOneWidget);
+        expect(find.text('Tahun'), findsOneWidget);
+        expect(
+          find.text('Aktif'),
+          findsOneWidget,
+        ); // Active indicator for current month
+
+        // Tap on Kuartal
+        await tester.tap(find.text('Kuartal'));
+        await tester.pumpAndSettle();
+
+        expect(picked, ViewMode.quarter);
+      },
+    );
+
+    testWidgets(
+      'PeriodNavigator renders mode badge, title, and handles date/mode changes',
+      (tester) async {
+        DateTime selectedDate = DateTime(2026, 9, 15);
+        ViewMode currentMode = ViewMode.month;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: StatefulBuilder(
+                builder: (ctx, setState) => PeriodNavigator(
+                  selectedDate: selectedDate,
+                  viewMode: currentMode,
+                  onDateChange: (newDate) {
+                    setState(() => selectedDate = newDate);
+                  },
+                  onModeChange: (newMode) {
+                    setState(() => currentMode = newMode);
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+
+        expect(find.text('Bulan'), findsOneWidget);
+        expect(find.text('September 2026'), findsOneWidget);
+
+        // Tap next chevron
+        await tester.tap(find.byIcon(Icons.chevron_right_rounded));
+        await tester.pumpAndSettle();
+        expect(find.text('October 2026'), findsOneWidget);
+
+        // Tap previous chevron twice
+        await tester.tap(find.byIcon(Icons.chevron_left_rounded));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.chevron_left_rounded));
+        await tester.pumpAndSettle();
+        expect(find.text('August 2026'), findsOneWidget);
+
+        // Tap center pill to open picker
+        await tester.tap(find.text('August 2026'));
+        await tester.pumpAndSettle();
+        expect(find.text('Pilih Rentang Waktu'), findsOneWidget);
+
+        // Select Tahun
+        await tester.tap(find.text('Tahun'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Tahun'), findsOneWidget);
+        expect(find.text('2026'), findsOneWidget);
+      },
+    );
   });
 }

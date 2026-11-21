@@ -8,6 +8,7 @@ import '../../providers/transaction_provider.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_utils.dart';
 import '../../widgets/animated_tab_bar.dart';
+import '../../widgets/period_navigator.dart';
 import '../../widgets/period_picker_dialog.dart';
 import '../../widgets/transaction_item.dart';
 import '../transactions/transaction_detail_screen.dart';
@@ -49,8 +50,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     try {
       final provider = context.read<TransactionProvider>();
-      final start = AppDateUtils.getStartOfPeriod(_selectedDate, _viewMode).millisecondsSinceEpoch;
-      final end = AppDateUtils.getEndOfPeriod(_selectedDate, _viewMode).millisecondsSinceEpoch;
+      final start = AppDateUtils.getStartOfPeriod(
+        _selectedDate,
+        _viewMode,
+      ).millisecondsSinceEpoch;
+      final end = AppDateUtils.getEndOfPeriod(
+        _selectedDate,
+        _viewMode,
+      ).millisecondsSinceEpoch;
 
       final txs = await provider.filterTransactions(
         startDate: start,
@@ -90,7 +97,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
     final netTotal = totalIncome - totalExpense;
 
-    final groupedList = AppDateUtils.groupTransactionsByDate(_currentTransactions);
+    final groupedList = AppDateUtils.groupTransactionsByDate(
+      _currentTransactions,
+    );
 
     final isDark = theme.brightness == Brightness.dark;
 
@@ -152,47 +161,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Clean Date Navigator (No Box, pure text and arrows)
+              // Period Navigator with interactive mode badge & selector
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        Icons.chevron_left,
-                        size: 28,
-                        color: isDark ? Colors.white : const Color(0xFF11181C),
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _selectedDate = AppDateUtils.addPeriod(_selectedDate, _viewMode, -1);
-                        });
-                        _fetchTransactions();
-                      },
-                    ),
-                    Text(
-                      AppDateUtils.formatPeriodTitle(_selectedDate, _viewMode),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : const Color(0xFF11181C),
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.chevron_right,
-                        size: 28,
-                        color: isDark ? Colors.white : const Color(0xFF11181C),
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _selectedDate = AppDateUtils.addPeriod(_selectedDate, _viewMode, 1);
-                        });
-                        _fetchTransactions();
-                      },
-                    ),
-                  ],
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: PeriodNavigator(
+                  selectedDate: _selectedDate,
+                  viewMode: _viewMode,
+                  onDateChange: (date) {
+                    setState(() => _selectedDate = date);
+                    _fetchTransactions();
+                  },
+                  onModeChange: (mode) {
+                    setState(() => _viewMode = mode);
+                    _fetchTransactions();
+                  },
                 ),
               ),
 
@@ -216,8 +198,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
                     // Tab 1: Gallery View
                     GalleryScreen(
-                      startDate: AppDateUtils.getStartOfPeriod(_selectedDate, _viewMode).millisecondsSinceEpoch,
-                      endDate: AppDateUtils.getEndOfPeriod(_selectedDate, _viewMode).millisecondsSinceEpoch,
+                      startDate: AppDateUtils.getStartOfPeriod(
+                        _selectedDate,
+                        _viewMode,
+                      ).millisecondsSinceEpoch,
+                      endDate: AppDateUtils.getEndOfPeriod(
+                        _selectedDate,
+                        _viewMode,
+                      ).millisecondsSinceEpoch,
                     ),
                   ],
                 ),
@@ -272,7 +260,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Income', style: TextStyle(color: descColor, fontSize: 14)),
+                  Text(
+                    'Income',
+                    style: TextStyle(color: descColor, fontSize: 14),
+                  ),
                   Text(
                     CurrencyFormatter.format(totalIncome, currency),
                     style: const TextStyle(
@@ -287,7 +278,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Expense', style: TextStyle(color: descColor, fontSize: 14)),
+                  Text(
+                    'Expense',
+                    style: TextStyle(color: descColor, fontSize: 14),
+                  ),
                   Text(
                     CurrencyFormatter.format(-totalExpense, currency),
                     style: const TextStyle(
@@ -302,13 +296,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Total', style: TextStyle(color: descColor, fontSize: 14)),
+                  Text(
+                    'Total',
+                    style: TextStyle(color: descColor, fontSize: 14),
+                  ),
                   Text(
                     CurrencyFormatter.format(netTotal, currency),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
-                      color: netTotal >= 0 ? AppColors.income : AppColors.expense,
+                      color: netTotal >= 0
+                          ? AppColors.income
+                          : AppColors.expense,
                     ),
                   ),
                 ],
@@ -357,7 +356,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: isPositive ? AppColors.income : AppColors.expense,
+                          color: isPositive
+                              ? AppColors.income
+                              : AppColors.expense,
                         ),
                       ),
                     ],
@@ -371,7 +372,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => TransactionDetailScreen(transactionId: tx.id),
+                          builder: (_) =>
+                              TransactionDetailScreen(transactionId: tx.id),
                         ),
                       ).then((_) => _fetchTransactions());
                     },

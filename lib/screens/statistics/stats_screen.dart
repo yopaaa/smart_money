@@ -8,6 +8,7 @@ import '../../providers/transaction_provider.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_utils.dart';
 import '../../widgets/custom_pie_chart.dart';
+import '../../widgets/period_navigator.dart';
 import '../../widgets/period_picker_dialog.dart';
 import '../../widgets/slide_select.dart';
 import '../transactions/per_category_screen.dart';
@@ -40,8 +41,14 @@ class _StatsScreenState extends State<StatsScreen> {
     });
 
     final provider = context.read<TransactionProvider>();
-    final start = AppDateUtils.getStartOfPeriod(_selectedDate, _viewMode).millisecondsSinceEpoch;
-    final end = AppDateUtils.getEndOfPeriod(_selectedDate, _viewMode).millisecondsSinceEpoch;
+    final start = AppDateUtils.getStartOfPeriod(
+      _selectedDate,
+      _viewMode,
+    ).millisecondsSinceEpoch;
+    final end = AppDateUtils.getEndOfPeriod(
+      _selectedDate,
+      _viewMode,
+    ).millisecondsSinceEpoch;
 
     try {
       final txs = await provider.filterTransactions(
@@ -78,7 +85,8 @@ class _StatsScreenState extends State<StatsScreen> {
 
     final List<CategoryStatModel> stats = [];
     for (var entry in amounts.entries) {
-      final category = provider.getCategoryById(entry.key) ??
+      final category =
+          provider.getCategoryById(entry.key) ??
           CategoryModel(
             id: entry.key,
             name: 'Lainnya',
@@ -88,13 +96,15 @@ class _StatsScreenState extends State<StatsScreen> {
           );
 
       final percent = total > 0 ? (entry.value / total) * 100 : 0.0;
-      stats.add(CategoryStatModel(
-        categoryId: entry.key,
-        categoryName: category.name,
-        amount: entry.value,
-        percent: percent,
-        category: category,
-      ));
+      stats.add(
+        CategoryStatModel(
+          categoryId: entry.key,
+          categoryName: category.name,
+          amount: entry.value,
+          percent: percent,
+          category: category,
+        ),
+      );
     }
 
     stats.sort((a, b) => b.amount.compareTo(a.amount));
@@ -166,7 +176,10 @@ class _StatsScreenState extends State<StatsScreen> {
                         color: textColor,
                       ),
                       onPressed: () async {
-                        final selected = await showPeriodPickerDialog(context, _viewMode);
+                        final selected = await showPeriodPickerDialog(
+                          context,
+                          _viewMode,
+                        );
                         if (selected != null && selected != _viewMode) {
                           setState(() => _viewMode = selected);
                           _fetchStats();
@@ -178,44 +191,20 @@ class _StatsScreenState extends State<StatsScreen> {
 
                 const SizedBox(height: 12),
 
-                // Date Navigator matching ss/Untitled.jpg: < September 2026 >
+                // Period Navigator matching ss/Untitled.jpg with interactive badge & selector
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.chevron_left, size: 28, color: textColor),
-                        onPressed: () {
-                          setState(() {
-                            _selectedDate = AppDateUtils.addPeriod(_selectedDate, _viewMode, -1);
-                          });
-                          _fetchStats();
-                        },
-                      ),
-                      Expanded(
-                        child: Text(
-                          AppDateUtils.formatPeriodTitle(_selectedDate, _viewMode),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.chevron_right, size: 28, color: textColor),
-                        onPressed: () {
-                          setState(() {
-                            _selectedDate = AppDateUtils.addPeriod(_selectedDate, _viewMode, 1);
-                          });
-                          _fetchStats();
-                        },
-                      ),
-                    ],
+                  child: PeriodNavigator(
+                    selectedDate: _selectedDate,
+                    viewMode: _viewMode,
+                    onDateChange: (date) {
+                      setState(() => _selectedDate = date);
+                      _fetchStats();
+                    },
+                    onModeChange: (mode) {
+                      setState(() => _viewMode = mode);
+                      _fetchStats();
+                    },
                   ),
                 ),
 
@@ -248,7 +237,9 @@ class _StatsScreenState extends State<StatsScreen> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                          color: isDark
+                              ? Colors.grey.shade400
+                              : const Color(0xFF64748B),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -262,10 +253,14 @@ class _StatsScreenState extends State<StatsScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        _selectedType == 'expense' ? 'Pengeluaran' : 'Pemasukan',
+                        _selectedType == 'expense'
+                            ? 'Pengeluaran'
+                            : 'Pemasukan',
                         style: TextStyle(
                           fontSize: 12,
-                          color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                          color: isDark
+                              ? Colors.grey.shade400
+                              : const Color(0xFF64748B),
                         ),
                       ),
                     ],
@@ -301,7 +296,9 @@ class _StatsScreenState extends State<StatsScreen> {
                           border: Border.all(
                             color: isSelected
                                 ? AppColors.primary
-                                : (isDark ? theme.dividerColor : Colors.transparent),
+                                : (isDark
+                                      ? theme.dividerColor
+                                      : Colors.transparent),
                             width: isSelected ? 1.5 : 1,
                           ),
                           boxShadow: [
@@ -326,14 +323,23 @@ class _StatsScreenState extends State<StatsScreen> {
                                 MaterialPageRoute(
                                   builder: (_) => PerCategoryScreen(
                                     category: item.category,
-                                    startDate: AppDateUtils.getStartOfPeriod(_selectedDate, _viewMode).millisecondsSinceEpoch,
-                                    endDate: AppDateUtils.getEndOfPeriod(_selectedDate, _viewMode).millisecondsSinceEpoch,
+                                    startDate: AppDateUtils.getStartOfPeriod(
+                                      _selectedDate,
+                                      _viewMode,
+                                    ).millisecondsSinceEpoch,
+                                    endDate: AppDateUtils.getEndOfPeriod(
+                                      _selectedDate,
+                                      _viewMode,
+                                    ).millisecondsSinceEpoch,
                                   ),
                                 ),
                               );
                             },
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 14,
+                              ),
                               child: Row(
                                 children: [
                                   SizedBox(
@@ -350,7 +356,8 @@ class _StatsScreenState extends State<StatsScreen> {
                                   const SizedBox(width: 14),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           item.categoryName,
@@ -362,10 +369,18 @@ class _StatsScreenState extends State<StatsScreen> {
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
-                                          CurrencyFormatter.format(item.amount, currency),
+                                          CurrencyFormatter.format(
+                                            item.amount,
+                                            currency,
+                                          ),
                                           style: TextStyle(
                                             fontSize: 12,
-                                            color: theme.textTheme.bodySmall?.color ?? Colors.grey,
+                                            color:
+                                                theme
+                                                    .textTheme
+                                                    .bodySmall
+                                                    ?.color ??
+                                                Colors.grey,
                                           ),
                                         ),
                                       ],
