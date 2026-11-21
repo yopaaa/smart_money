@@ -9,6 +9,7 @@ import '../../utils/currency_formatter.dart';
 import '../../utils/date_utils.dart';
 import '../../widgets/custom_pie_chart.dart';
 import '../../widgets/period_picker_dialog.dart';
+import '../../widgets/slide_select.dart';
 import '../transactions/per_category_screen.dart';
 
 class StatsScreen extends StatefulWidget {
@@ -100,161 +101,6 @@ class _StatsScreenState extends State<StatsScreen> {
     return stats;
   }
 
-  Widget _buildSlideSelect(ThemeData theme, bool isDark, Color textColor) {
-    final isExpense = _selectedType == 'expense';
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedType = isExpense ? 'income' : 'expense';
-          _selectedCategoryIndex = null;
-        });
-        _fetchStats();
-      },
-      child: Container(
-        height: 38,
-        padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-          color: isDark ? Colors.grey.shade800 : const Color(0xFFE5E7EB),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Income Side
-            if (!isExpense) ...[
-              // Active Income Pill
-              Container(
-                height: 32,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: isDark ? theme.cardColor : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Income',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    Container(
-                      width: 20,
-                      height: 20,
-                      decoration: const BoxDecoration(
-                        color: Colors.black87,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.arrow_downward,
-                          size: 13,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 4),
-              // Inactive Expense Circle
-              Container(
-                width: 28,
-                height: 28,
-                decoration: const BoxDecoration(
-                  color: Colors.black87,
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.arrow_upward,
-                    size: 15,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ] else ...[
-              // Inactive Income Circle
-              Container(
-                width: 28,
-                height: 28,
-                decoration: const BoxDecoration(
-                  color: Colors.black87,
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.arrow_downward,
-                    size: 15,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-              // Active Expense Pill
-              Container(
-                height: 32,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: isDark ? theme.cardColor : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Expense',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    Container(
-                      width: 20,
-                      height: 20,
-                      decoration: const BoxDecoration(
-                        color: Colors.black87,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.arrow_upward,
-                          size: 13,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<TransactionProvider>();
@@ -282,8 +128,17 @@ class _StatsScreenState extends State<StatsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Left: SlideSelect (Expense / Income)
-                    _buildSlideSelect(theme, isDark, textColor),
+                    // Left: SlideSelect (Expense / Income) with smooth animation
+                    SlideSelect(
+                      selectedType: _selectedType,
+                      onChanged: (val) {
+                        setState(() {
+                          _selectedType = val;
+                          _selectedCategoryIndex = null;
+                        });
+                        _fetchStats();
+                      },
+                    ),
 
                     // Middle: Statistics Title
                     Flexible(

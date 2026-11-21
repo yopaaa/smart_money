@@ -114,7 +114,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         actions: [
           IconButton(
             icon: Icon(
-              Ionicons.searchOutline,
+              Ionicons.search,
               size: 24,
               color: isDark ? Colors.white : const Color(0xFF11181C),
             ),
@@ -127,7 +127,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
           IconButton(
             icon: Icon(
-              Ionicons.calendarOutline,
+              Ionicons.calendar,
               size: 24,
               color: isDark ? Colors.white : const Color(0xFF11181C),
             ),

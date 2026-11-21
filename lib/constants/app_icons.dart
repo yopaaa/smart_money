@@ -3,106 +3,106 @@ import 'package:ionicons/ionicons.dart';
 
 class AppIcons {
   static IconData getIcon(String? name) {
-    if (name == null || name.isEmpty) return Ionicons.shapesOutline;
+    if (name == null || name.isEmpty) return Ionicons.shapes;
 
     switch (name.toLowerCase()) {
       // Account types
       case 'cash':
       case 'cash-plus':
-        return Ionicons.cashOutline;
+        return Ionicons.cash;
       case 'account-cash':
-        return Ionicons.walletOutline;
+        return Ionicons.wallet;
       case 'card':
       case 'credit-card':
       case 'credit-card-outline':
       case 'debit':
-        return Ionicons.cardOutline;
+        return Ionicons.card;
       case 'saving':
       case 'bank':
-        return Ionicons.businessOutline;
+        return Ionicons.business;
       case 'invest':
       case 'chart-line':
-        return Ionicons.trendingUpOutline;
+        return Ionicons.trendingUp;
       case 'liability':
       case 'file-document':
-        return Ionicons.documentTextOutline;
+        return Ionicons.documentText;
       case 'debt':
-        return Ionicons.peopleOutline;
+        return Ionicons.people;
       case 'receivable':
       case 'account-arrow-left':
-        return Ionicons.personAddOutline;
+        return Ionicons.personAdd;
       case 'expense-buffer':
       case 'umbrella':
-        return Ionicons.umbrellaOutline;
+        return Ionicons.umbrella;
       case 'wallet':
       case 'wallet-giftcard':
-        return Ionicons.walletOutline;
+        return Ionicons.wallet;
 
       // Expenses categories
       case 'silverware-fork-knife':
       case 'food':
-        return Ionicons.restaurantOutline;
+        return Ionicons.restaurant;
       case 'cup-water':
       case 'drink':
-        return Ionicons.cafeOutline;
+        return Ionicons.cafe;
       case 'bus':
       case 'transport':
       case 'car':
-        return Ionicons.carOutline;
+        return Ionicons.car;
       case 'shopping':
       case 'cart':
-        return Ionicons.cartOutline;
+        return Ionicons.cart;
       case 'movie':
       case 'film':
-        return Ionicons.filmOutline;
+        return Ionicons.film;
       case 'heart-pulse':
       case 'health':
-        return Ionicons.heartOutline;
+        return Ionicons.heart;
       case 'school':
       case 'education':
-        return Ionicons.schoolOutline;
+        return Ionicons.school;
       case 'hand-heart':
       case 'donate':
-        return Ionicons.heartCircleOutline;
+        return Ionicons.heartCircle;
       case 'bank-transfer-out':
-        return Ionicons.arrowUpCircleOutline;
+        return Ionicons.arrowUpCircle;
       case 'bank-transfer-in':
-        return Ionicons.arrowDownCircleOutline;
+        return Ionicons.arrowDownCircle;
       case 'bank-transfer':
       case 'transfer':
-        return Ionicons.swapHorizontalOutline;
+        return Ionicons.swapHorizontal;
       case 'file-cog':
       case 'admin':
-        return Ionicons.constructOutline;
+        return Ionicons.construct;
       case 'gift':
       case 'party-popper':
-        return Ionicons.giftOutline;
+        return Ionicons.gift;
       case 'cellphone':
       case 'phone':
-        return Ionicons.phonePortraitOutline;
+        return Ionicons.phonePortrait;
       case 'home':
-        return Ionicons.homeOutline;
+        return Ionicons.home;
       case 'face-woman':
       case 'skincare':
-        return Ionicons.sparklesOutline;
+        return Ionicons.sparkles;
       case 'piggy-bank':
       case 'savings':
-        return Ionicons.walletOutline;
+        return Ionicons.wallet;
       case 'briefcase':
       case 'work':
-        return Ionicons.briefcaseOutline;
+        return Ionicons.briefcase;
       case 'safe':
       case 'vault':
-        return Ionicons.lockClosedOutline;
+        return Ionicons.lockClosed;
       case 'hand-coin':
       case 'currency-usd':
-        return Ionicons.cashOutline;
+        return Ionicons.cash;
       case 'store':
-        return Ionicons.storefrontOutline;
+        return Ionicons.storefront;
       case 'calendar-month':
-        return Ionicons.calendarOutline;
+        return Ionicons.calendar;
       case 'account-circle':
-        return Ionicons.personCircleOutline;
+        return Ionicons.personCircle;
       case 'dots-horizontal':
       case 'other':
       default:

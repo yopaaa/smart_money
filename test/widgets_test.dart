@@ -4,6 +4,7 @@ import 'package:ionicons/ionicons.dart';
 import 'package:smart_money/widgets/action_button.dart';
 import 'package:smart_money/widgets/animated_tab_bar.dart';
 import 'package:smart_money/widgets/custom_card.dart';
+import 'package:smart_money/widgets/slide_select.dart';
 
 void main() {
   group('AnimatedTabBar Component Tests', () {
@@ -147,6 +148,31 @@ void main() {
       await tester.tap(find.text('Card Content'));
       await tester.pump();
       expect(tapped, true);
+    });
+  });
+
+  group('SlideSelect Component Tests', () {
+    testWidgets('renders Income and Expense and responds to toggle', (tester) async {
+      String selected = 'expense';
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SlideSelect(
+              selectedType: selected,
+              onChanged: (val) => selected = val,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Expense'), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_downward), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.arrow_downward));
+      await tester.pumpAndSettle();
+      expect(selected, 'income');
     });
   });
 }
