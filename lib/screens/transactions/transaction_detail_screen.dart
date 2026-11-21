@@ -7,6 +7,7 @@ import '../../constants/app_icons.dart';
 import '../../models/transaction_model.dart';
 import '../../providers/transaction_provider.dart';
 import '../../utils/currency_formatter.dart';
+import '../../widgets/action_button.dart';
 import 'transaction_form_screen.dart';
 
 class TransactionDetailScreen extends StatefulWidget {
@@ -325,59 +326,26 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF44336),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      elevation: 1,
-                    ),
-                    onPressed: _deleteTransaction,
-                    child: const Text(
-                      'Hapus',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
+                  child: ActionButton(
+                    title: 'Hapus',
+                    backgroundColor: const Color(0xFFF44336),
+                    onPress: _deleteTransaction,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2196F3),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      elevation: 1,
-                    ),
-                    onPressed: _handleCopy,
-                    child: const Text(
-                      'Salin',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
+                  child: ActionButton(
+                    title: 'Salin',
+                    backgroundColor: const Color(0xFF2196F3),
+                    onPress: _handleCopy,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4CAF50),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      elevation: 1,
-                    ),
-                    onPressed: _handleEdit,
-                    child: const Text(
-                      'Edit',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
+                  child: ActionButton(
+                    title: 'Edit',
+                    backgroundColor: const Color(0xFF4CAF50),
+                    onPress: _handleEdit,
                   ),
                 ),
               ],

@@ -13,6 +13,8 @@ import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 import '../../providers/transaction_provider.dart';
 import '../../utils/currency_formatter.dart';
+import '../../widgets/action_button.dart';
+import '../../widgets/animated_tab_bar.dart';
 
 class TransactionFormScreen extends StatefulWidget {
   final TransactionModel? editTransaction;
@@ -134,6 +136,25 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       text: formatted,
       selection: TextSelection.collapsed(offset: formatted.length),
     );
+  }
+
+  int get _typeIndex {
+    if (_type == 'income') return 0;
+    if (_type == 'expense') return 1;
+    return 2;
+  }
+
+  void _onTypeTabChanged(int index) {
+    const keys = ['income', 'expense', 'transfer'];
+    final key = keys[index.clamp(0, 2)];
+    setState(() {
+      _type = key;
+      final provider = context.read<TransactionProvider>();
+      final cats = provider.getCategoriesByType(key);
+      if (cats.isNotEmpty) {
+        _selectedCategory = cats.first;
+      }
+    });
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -633,21 +654,17 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
         children: [
-          // Segmented Tab container: Income | Expense | Transfer (Screenshot 3)
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Row(
-              children: [
-                _buildSegmentTab('income', 'Income'),
-                _buildSegmentTab('expense', 'Expense'),
-                _buildSegmentTab('transfer', 'Transfer'),
-              ],
-            ),
+          // Segmented Tab container: Income | Expense | Transfer
+          AnimatedTabBar(
+            width: double.infinity,
+            height: 48,
+            activeIndex: _typeIndex,
+            onTabChanged: _onTypeTabChanged,
+            tabs: const [
+              TabItem(key: 'income', label: 'Income'),
+              TabItem(key: 'expense', label: 'Expense'),
+              TabItem(key: 'transfer', label: 'Transfer'),
+            ],
           ),
           const SizedBox(height: 24),
 
@@ -1048,26 +1065,12 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
           const SizedBox(height: 36),
 
           // Full-width Bottom Button matching Screenshot 3
-          SizedBox(
-            width: double.infinity,
+          ActionButton(
+            title: widget.editTransaction != null ? 'Update Transaksi' : 'Tambah Transaksi',
             height: 50,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _submit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                elevation: 0,
-              ),
-              child: _isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : Text(
-                      widget.editTransaction != null ? 'Update Transaksi' : 'Tambah Transaksi',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-            ),
+            borderRadius: 10,
+            isLoading: _isLoading,
+            onPress: _submit,
           ),
           const SizedBox(height: 40),
         ],
@@ -1091,43 +1094,6 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
         ),
         Expanded(child: child),
       ],
-    );
-  }
-
-  Widget _buildSegmentTab(String key, String label) {
-    final isSelected = _type == key;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _type = key;
-            final provider = context.read<TransactionProvider>();
-            final cats = provider.getCategoriesByType(key);
-            if (cats.isNotEmpty) {
-              _selectedCategory = cats.first;
-            }
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            border: isSelected ? Border.all(color: AppColors.primary, width: 1.5) : null,
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: isSelected ? AppColors.primary : Colors.grey.shade600,
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
