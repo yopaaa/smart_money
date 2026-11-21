@@ -42,6 +42,29 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
     }
   }
 
+  Future<void> _handleEdit() async {
+    if (_transaction == null) return;
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TransactionFormScreen(editTransaction: _transaction!),
+      ),
+    );
+    if (result == true) {
+      _loadTransaction();
+    }
+  }
+
+  void _handleCopy() {
+    if (_transaction == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TransactionFormScreen(copyFromTransaction: _transaction!),
+      ),
+    );
+  }
+
   Future<void> _deleteTransaction() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -116,21 +139,18 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
         title: const Text('Transaction Details'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.copy_outlined),
+            tooltip: 'Copy',
+            onPressed: _handleCopy,
+          ),
+          IconButton(
             icon: const Icon(Icons.edit_outlined),
-            onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => TransactionFormScreen(editTransaction: tx),
-                ),
-              );
-              if (result == true) {
-                _loadTransaction();
-              }
-            },
+            tooltip: 'Edit',
+            onPressed: _handleEdit,
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.red),
+            tooltip: 'Delete',
             onPressed: _deleteTransaction,
           ),
         ],
@@ -301,6 +321,67 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                 ),
               ),
             ],
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF44336),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 1,
+                    ),
+                    onPressed: _deleteTransaction,
+                    child: const Text(
+                      'Hapus',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2196F3),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 1,
+                    ),
+                    onPressed: _handleCopy,
+                    child: const Text(
+                      'Salin',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4CAF50),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 1,
+                    ),
+                    onPressed: _handleEdit,
+                    child: const Text(
+                      'Edit',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 32),
           ],
         ),

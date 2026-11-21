@@ -8,6 +8,8 @@ import 'package:smart_money/providers/transaction_provider.dart';
 import 'package:smart_money/constants/app_icons.dart';
 import 'package:smart_money/screens/accounts/create_account_screen.dart';
 import 'package:smart_money/screens/home/history_screen.dart';
+import 'package:smart_money/screens/settings/file_export_screen.dart';
+import 'package:smart_money/screens/settings/report_screen.dart';
 import 'package:smart_money/screens/settings/settings_screen.dart';
 import 'package:smart_money/screens/splash/splash_screen.dart';
 import 'package:smart_money/screens/statistics/stats_screen.dart';
@@ -147,5 +149,50 @@ void main() {
     expect(find.text('Smart Money'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
+  });
+
+  testWidgets('FileExportScreen renders CSV and Excel export options', (tester) async {
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ThemeProvider()),
+          ChangeNotifierProvider(create: (_) => TransactionProvider()),
+        ],
+        child: const MaterialApp(
+          home: FileExportScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('Export Data'), findsOneWidget);
+    expect(find.text('Export CSV'), findsWidgets);
+    expect(find.text('Export Excel (XLS)'), findsOneWidget);
+    expect(find.text('Export Excel'), findsOneWidget);
+  });
+
+  testWidgets('ReportScreen renders fields and sends report dialog', (tester) async {
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ThemeProvider()),
+          ChangeNotifierProvider(create: (_) => TransactionProvider()),
+        ],
+        child: const MaterialApp(
+          home: ReportScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('Contact & Report'), findsOneWidget);
+    expect(find.text('Judul / Subjek'), findsOneWidget);
+    expect(find.text('Email Anda'), findsOneWidget);
+    expect(find.text('Deskripsi Masalah / Masukan'), findsOneWidget);
+    expect(find.text('KIRIM LAPORAN'), findsOneWidget);
   });
 }

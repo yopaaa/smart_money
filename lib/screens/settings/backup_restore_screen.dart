@@ -98,8 +98,9 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       }
 
       final pickedPath = files.first.path!;
-      if (!pickedPath.endsWith('.smbak') && !pickedPath.endsWith('.db')) {
-        throw Exception('File must be a .smbak or .db file');
+      final lowerPath = pickedPath.toLowerCase();
+      if (!lowerPath.endsWith('.smbak') && !lowerPath.endsWith('.db') && !lowerPath.endsWith('.sqlite')) {
+        throw Exception('File must be a .smbak, .db, or .sqlite file');
       }
 
       final dbPath = await getDatabasesPath();

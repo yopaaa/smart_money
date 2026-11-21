@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/transaction_provider.dart';
+import '../home/gallery_screen.dart';
 import 'app_info_screen.dart';
 import 'backup_restore_screen.dart';
 import 'category_management_screen.dart';
 import 'currency_setting_screen.dart';
 import 'deleted_history_screen.dart';
+import 'file_export_screen.dart';
+import 'report_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -223,6 +226,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       Divider(height: 1, color: dividerColor),
                       _buildNavigationItem(
+                        title: 'Export Data',
+                        subtitle: 'Export transactions to CSV or Excel',
+                        titleColor: itemTitleColor,
+                        subtitleColor: subtitleColor,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const FileExportScreen()),
+                          );
+                        },
+                      ),
+                      Divider(height: 1, color: dividerColor),
+                      _buildNavigationItem(
+                        title: 'Gallery',
+                        subtitle: 'Transactions receipt images',
+                        titleColor: itemTitleColor,
+                        subtitleColor: subtitleColor,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const GalleryScreen(isStandalone: true),
+                            ),
+                          );
+                        },
+                      ),
+                      Divider(height: 1, color: dividerColor),
+                      _buildNavigationItem(
                         title: 'Recycle Bin',
                         subtitle: 'View and restore deleted transactions',
                         titleColor: itemTitleColor,
@@ -238,11 +269,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // ABOUT Section
-                  _buildSectionHeader('ABOUT', sectionTitleColor),
+                  // ABOUT & SUPPORT Section
+                  _buildSectionHeader('SUPPORT & ABOUT', sectionTitleColor),
                   _buildCard(
                     cardBg: cardBg,
                     children: [
+                      _buildNavigationItem(
+                        title: 'Contact & Feedback',
+                        subtitle: 'Send feedback or report issues',
+                        titleColor: itemTitleColor,
+                        subtitleColor: subtitleColor,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const ReportScreen()),
+                          );
+                        },
+                      ),
+                      Divider(height: 1, color: dividerColor),
                       _buildNavigationItem(
                         title: 'About Smart Money',
                         subtitle: 'Version 1.0.0',

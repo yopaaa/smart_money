@@ -16,10 +16,12 @@ import '../../utils/currency_formatter.dart';
 
 class TransactionFormScreen extends StatefulWidget {
   final TransactionModel? editTransaction;
+  final TransactionModel? copyFromTransaction;
 
   const TransactionFormScreen({
     super.key,
     this.editTransaction,
+    this.copyFromTransaction,
   });
 
   @override
@@ -61,6 +63,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     super.initState();
     final provider = context.read<TransactionProvider>();
     final tx = widget.editTransaction;
+    final copyTx = widget.copyFromTransaction;
 
     if (tx != null) {
       _type = tx.type;
@@ -76,6 +79,19 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       _selectedDate = tx.dateTime;
       _selectedTime = TimeOfDay(hour: tx.dateTime.hour, minute: tx.dateTime.minute);
       _imagePath = tx.img;
+    } else if (copyTx != null) {
+      _type = copyTx.type;
+      _titleController.text = copyTx.title;
+      _amount = copyTx.amount;
+      _amountController.text = 'Rp ${CurrencyFormatter.formatNumber(_amount)}';
+      _fee = copyTx.fee;
+      _feeController.text = 'Rp ${CurrencyFormatter.formatNumber(_fee)}';
+      _descController.text = copyTx.description ?? '';
+      _selectedAccount = provider.findAccount(copyTx.accountId);
+      _selectedTargetAccount = provider.findAccount(copyTx.targetAccountId);
+      _selectedCategory = provider.getCategoryById(copyTx.category);
+      _selectedDate = DateTime.now();
+      _selectedTime = TimeOfDay.now();
     } else {
       if (provider.accounts.isNotEmpty) {
         _selectedAccount = provider.accounts.first;
