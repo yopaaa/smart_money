@@ -38,8 +38,13 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
   String _type = 'expense';
 
   final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _amountController = TextEditingController(text: 'Rp 0');
-  final TextEditingController _feeController = TextEditingController(text: 'Rp 0');
+  final TextEditingController _amountController = TextEditingController(
+    text: 'Rp 0',
+  );
+  final FocusNode _amountFocusNode = FocusNode();
+  final TextEditingController _feeController = TextEditingController(
+    text: 'Rp 0',
+  );
   final TextEditingController _descController = TextEditingController();
 
   // Chat mode input
@@ -79,7 +84,10 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       _selectedTargetAccount = provider.findAccount(tx.targetAccountId);
       _selectedCategory = provider.getCategoryById(tx.category);
       _selectedDate = tx.dateTime;
-      _selectedTime = TimeOfDay(hour: tx.dateTime.hour, minute: tx.dateTime.minute);
+      _selectedTime = TimeOfDay(
+        hour: tx.dateTime.hour,
+        minute: tx.dateTime.minute,
+      );
       _imagePath = tx.img;
     } else if (copyTx != null) {
       _type = copyTx.type;
@@ -106,10 +114,17 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
         _selectedCategory = expenseCats.first;
       }
     }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _inputMode == 'keyboard') {
+        _amountFocusNode.requestFocus();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _amountFocusNode.dispose();
     _titleController.dispose();
     _amountController.dispose();
     _feeController.dispose();
@@ -162,8 +177,11 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       final picked = await _picker.pickImage(source: source);
       if (picked != null) {
         final appDir = await getApplicationDocumentsDirectory();
-        final fileName = 'receipt_${DateTime.now().millisecondsSinceEpoch}${p.extension(picked.path)}';
-        final savedImage = await File(picked.path).copy('${appDir.path}/$fileName');
+        final fileName =
+            'receipt_${DateTime.now().millisecondsSinceEpoch}${p.extension(picked.path)}';
+        final savedImage = await File(
+          picked.path,
+        ).copy('${appDir.path}/$fileName');
         setState(() {
           _imagePath = savedImage.path;
         });
@@ -191,10 +209,8 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: categories.length,
-                  separatorBuilder: (_, _) => Divider(
-                    height: 1,
-                    color: Colors.grey.shade200,
-                  ),
+                  separatorBuilder: (_, _) =>
+                      Divider(height: 1, color: Colors.grey.shade200),
                   itemBuilder: (context, index) {
                     final cat = categories[index];
                     final color = AppColors.parseHex(cat.color);
@@ -211,7 +227,10 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                       ),
                       title: Text(
                         cat.name,
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       onTap: () {
                         setState(() {
@@ -256,10 +275,8 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: accounts.length,
-                  separatorBuilder: (_, _) => Divider(
-                    height: 1,
-                    color: Colors.grey.shade200,
-                  ),
+                  separatorBuilder: (_, _) =>
+                      Divider(height: 1, color: Colors.grey.shade200),
                   itemBuilder: (context, index) {
                     final acc = accounts[index];
                     final color = AppColors.parseHex(acc.iconColor);
@@ -275,11 +292,17 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                       ),
                       title: Text(
                         acc.name,
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       subtitle: Text(
                         '( ${CurrencyFormatter.format(acc.balance, provider.currency)} )',
-                        style: const TextStyle(fontSize: 13, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey,
+                        ),
                       ),
                       onTap: () {
                         setState(() {
@@ -327,9 +350,9 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     }
 
     if (_selectedAccount == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pilih akun sumber')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Pilih akun sumber')));
       return;
     }
 
@@ -342,7 +365,9 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       }
       if (_selectedAccount!.id == _selectedTargetAccount!.id) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Akun asal dan tujuan tidak boleh sama')),
+          const SnackBar(
+            content: Text('Akun asal dan tujuan tidak boleh sama'),
+          ),
         );
         return;
       }
@@ -364,7 +389,9 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     final tx = TransactionModel(
       id: widget.editTransaction?.id ?? '',
       title: title,
-      description: _descController.text.trim().isEmpty ? null : _descController.text.trim(),
+      description: _descController.text.trim().isEmpty
+          ? null
+          : _descController.text.trim(),
       amount: _amount,
       type: _type,
       accountId: _selectedAccount!.id,
@@ -386,9 +413,9 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) {
@@ -422,19 +449,30 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     }
 
     if (matchedCat == null) {
-      if (lower.contains('makan') || lower.contains('dinner') || lower.contains('lunch') || lower.contains('kue')) {
-        matchedCat = provider.categories.firstWhere((c) => c.name.toLowerCase().contains('makan'),
-            orElse: () => provider.categories.first);
+      if (lower.contains('makan') ||
+          lower.contains('dinner') ||
+          lower.contains('lunch') ||
+          lower.contains('kue')) {
+        matchedCat = provider.categories.firstWhere(
+          (c) => c.name.toLowerCase().contains('makan'),
+          orElse: () => provider.categories.first,
+        );
       } else if (lower.contains('kopi') || lower.contains('minum')) {
-        matchedCat = provider.categories.firstWhere((c) => c.name.toLowerCase().contains('minum'),
-            orElse: () => provider.categories.first);
+        matchedCat = provider.categories.firstWhere(
+          (c) => c.name.toLowerCase().contains('minum'),
+          orElse: () => provider.categories.first,
+        );
       } else if (lower.contains('gaji')) {
-        matchedCat = provider.categories.firstWhere((c) => c.name.toLowerCase().contains('gaji'),
-            orElse: () => provider.categories.first);
+        matchedCat = provider.categories.firstWhere(
+          (c) => c.name.toLowerCase().contains('gaji'),
+          orElse: () => provider.categories.first,
+        );
       }
     }
 
-    final account = provider.accounts.isNotEmpty ? provider.accounts.first : null;
+    final account = provider.accounts.isNotEmpty
+        ? provider.accounts.first
+        : null;
     if (account == null) return;
 
     final newTx = TransactionModel(
@@ -442,7 +480,9 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       title: raw,
       description: 'Input via Chat',
       amount: parsedAmount > 0 ? parsedAmount : 10000,
-      type: (matchedCat != null && matchedCat.type == 'income') ? 'income' : 'expense',
+      type: (matchedCat != null && matchedCat.type == 'income')
+          ? 'income'
+          : 'expense',
       accountId: account.id,
       createdAt: DateTime.now().millisecondsSinceEpoch.toString(),
       category: matchedCat?.id,
@@ -465,6 +505,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     if (_type == 'transfer') appTitle = 'Transfer';
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -491,9 +532,14 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                   GestureDetector(
                     onTap: () => setState(() => _inputMode = 'keyboard'),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: _inputMode == 'keyboard' ? theme.cardColor : Colors.transparent,
+                        color: _inputMode == 'keyboard'
+                            ? theme.cardColor
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: _inputMode == 'keyboard'
                             ? [
@@ -501,7 +547,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                                   color: Colors.black.withOpacity(0.08),
                                   blurRadius: 4,
                                   offset: const Offset(0, 1),
-                                )
+                                ),
                               ]
                             : null,
                       ),
@@ -513,7 +559,9 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                             'Keyboard',
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: _inputMode == 'keyboard' ? FontWeight.bold : FontWeight.normal,
+                              fontWeight: _inputMode == 'keyboard'
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           ),
                         ],
@@ -523,9 +571,14 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                   GestureDetector(
                     onTap: () => setState(() => _inputMode = 'chat'),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: _inputMode == 'chat' ? theme.cardColor : Colors.transparent,
+                        color: _inputMode == 'chat'
+                            ? theme.cardColor
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: _inputMode == 'chat'
                             ? [
@@ -533,7 +586,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                                   color: Colors.black.withOpacity(0.08),
                                   blurRadius: 4,
                                   offset: const Offset(0, 1),
-                                )
+                                ),
                               ]
                             : null,
                       ),
@@ -543,7 +596,9 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                             'Chat',
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: _inputMode == 'chat' ? FontWeight.bold : FontWeight.normal,
+                              fontWeight: _inputMode == 'chat'
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           ),
                           const SizedBox(width: 4),
@@ -573,10 +628,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
         children: [
           const Text(
             'Riwayat Transaksi',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           Row(
@@ -588,7 +640,10 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                     hintText: 'Contoh: dinner 50',
                     filled: true,
                     fillColor: Colors.grey.shade100,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(color: Colors.grey.shade300),
@@ -607,8 +662,13 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 child: const Text(
                   'TAMBAH',
@@ -631,8 +691,13 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                     itemBuilder: (context, index) {
                       final tx = _chatTransactions[index];
                       return ListTile(
-                        title: Text(tx.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(DateFormat('dd/MM/yyyy HH:mm').format(tx.dateTime)),
+                        title: Text(
+                          tx.title,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          DateFormat('dd/MM/yyyy HH:mm').format(tx.dateTime),
+                        ),
                         trailing: Text(
                           CurrencyFormatter.format(tx.amount),
                           style: const TextStyle(fontWeight: FontWeight.bold),
@@ -647,452 +712,636 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
   }
 
   // Keyboard form view matching Screenshot 3
+  // Keyboard form view matching clean, compact vertical layout
   Widget _buildKeyboardModeBody(ThemeData theme, TransactionProvider provider) {
     final currency = provider.currency;
+    final isDark = theme.brightness == Brightness.dark;
+    final cardBg = isDark ? theme.cardColor : Colors.white;
+    final borderColor = isDark ? theme.dividerColor : const Color(0xFFE2E8F0);
+    final textColor = isDark ? Colors.white : const Color(0xFF1E293B);
+    final labelColor = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
+    final hintColor = isDark ? Colors.grey.shade500 : Colors.grey.shade400;
+    final subtextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Column(
-        children: [
-          // Segmented Tab container: Income | Expense | Transfer
-          AnimatedTabBar(
-            width: double.infinity,
-            height: 48,
-            activeIndex: _typeIndex,
-            onTabChanged: _onTypeTabChanged,
-            tabs: const [
-              TabItem(key: 'income', label: 'Income'),
-              TabItem(key: 'expense', label: 'Expense'),
-              TabItem(key: 'transfer', label: 'Transfer'),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Date Row
-          _buildFormRow(
-            label: 'Date',
-            child: Row(
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 12.0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  flex: 3,
-                  child: GestureDetector(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: _selectedDate,
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2100),
-                      );
-                      if (picked != null) {
-                        setState(() => _selectedDate = picked);
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Center(
-                        child: Text(
-                          DateFormat('M/d/yyyy').format(_selectedDate),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
-                      ),
-                    ),
-                  ),
+                // Segmented Tab container: Income | Expense | Transfer
+                AnimatedTabBar(
+                  width: double.infinity,
+                  height: 44,
+                  activeIndex: _typeIndex,
+                  onTabChanged: _onTypeTabChanged,
+                  tabs: const [
+                    TabItem(key: 'income', label: 'Income'),
+                    TabItem(key: 'expense', label: 'Expense'),
+                    TabItem(key: 'transfer', label: 'Transfer'),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 2,
-                  child: GestureDetector(
-                    onTap: () async {
-                      final picked = await showTimePicker(
-                        context: context,
-                        initialTime: _selectedTime,
-                      );
-                      if (picked != null) {
-                        setState(() => _selectedTime = picked);
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Center(
-                        child: Text(
-                          _selectedTime.format(context),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
+                const SizedBox(height: 14),
 
-          // Judul Transaksi Row
-          _buildFormRow(
-            label: 'Judul Transaksi',
-            child: TextField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                hintText: 'dinner, gaji, or transfer',
-                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                filled: true,
-                fillColor: Colors.grey.shade100,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Jumlah (Rp) Row
-          _buildFormRow(
-            label: 'Jumlah (${currency.symbol})',
-            child: TextField(
-              controller: _amountController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              onChanged: _onAmountChanged,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.grey.shade100,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Kategori Row (if not transfer)
-          if (_type != 'transfer') ...[
-            _buildFormRow(
-              label: 'Kategori',
-              child: GestureDetector(
-                onTap: _showCategoryDialog,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Row(
-                    children: [
-                      if (_selectedCategory != null)
-                        Icon(
-                          AppIcons.getIcon(_selectedCategory!.icon),
-                          color: AppColors.parseHex(_selectedCategory!.color),
-                          size: 22,
-                        ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _selectedCategory?.name ?? 'Pilih Kategori',
-                          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15),
-                        ),
-                      ),
-                      Container(
-                        width: 22,
-                        height: 22,
-                        decoration: const BoxDecoration(
-                          color: Colors.black,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.arrow_drop_down,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-          ],
-
-          // Akun Sumber Row
-          _buildFormRow(
-            label: _type == 'transfer' ? 'Akun Sumber' : 'Akun Sumber',
-            child: GestureDetector(
-              onTap: () => _showAccountDialog(isTarget: false),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: Row(
+                // Date & Time Row (side by side, vertical labels)
+                Row(
                   children: [
-                    if (_selectedAccount != null)
-                      Icon(
-                        AppIcons.getIcon(_selectedAccount!.icon),
-                        color: AppColors.parseHex(_selectedAccount!.iconColor),
-                        size: 22,
+                    Expanded(
+                      flex: 3,
+                      child: _buildFormField(
+                        label: 'Tanggal',
+                        labelColor: labelColor,
+                        child: GestureDetector(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: _selectedDate,
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                            );
+                            if (picked != null) {
+                              setState(() => _selectedDate = picked);
+                            }
+                          },
+                          child: Container(
+                            height: 44,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: borderColor),
+                            ),
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today_outlined,
+                                  size: 16,
+                                  color: subtextColor,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    DateFormat(
+                                      'dd/MM/yyyy',
+                                    ).format(_selectedDate),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _selectedAccount?.name ?? 'Pilih Akun',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                          if (_selectedAccount != null)
-                            Text(
-                              '( ${CurrencyFormatter.format(_selectedAccount!.balance, currency)} )',
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      flex: 2,
+                      child: _buildFormField(
+                        label: 'Waktu',
+                        labelColor: labelColor,
+                        child: GestureDetector(
+                          onTap: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: _selectedTime,
+                            );
+                            if (picked != null) {
+                              setState(() => _selectedTime = picked);
+                            }
+                          },
+                          child: Container(
+                            height: 44,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: borderColor),
                             ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      width: 22,
-                      height: 22,
-                      decoration: const BoxDecoration(
-                        color: Colors.black,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.arrow_drop_down,
-                        color: Colors.white,
-                        size: 18,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.access_time,
+                                  size: 16,
+                                  color: subtextColor,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _selectedTime.format(context),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
+                const SizedBox(height: 5),
 
-          // Transfer specific rows
-          if (_type == 'transfer') ...[
-            _buildFormRow(
-              label: 'Akun Tujuan',
-              child: GestureDetector(
-                onTap: () => _showAccountDialog(isTarget: true),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Row(
-                    children: [
-                      if (_selectedTargetAccount != null)
-                        Icon(
-                          AppIcons.getIcon(_selectedTargetAccount!.icon),
-                          color: AppColors.parseHex(_selectedTargetAccount!.iconColor),
-                          size: 22,
+                // Judul Transaksi
+                _buildFormField(
+                  label: 'Judul Transaksi',
+                  labelColor: labelColor,
+                  child: TextField(
+                    controller: _titleController,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: textColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Misal: Makan Siang, Belanja, Gaji...',
+                      hintStyle: TextStyle(color: hintColor, fontSize: 13),
+                      filled: true,
+                      fillColor: cardBg,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 11,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: borderColor),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: borderColor),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(
+                          color: AppColors.primary,
+                          width: 1.5,
                         ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 5),
+
+                // Jumlah (Rp)
+                _buildFormField(
+                  label: 'Jumlah (${currency.symbol})',
+                  labelColor: labelColor,
+                  child: TextField(
+                    controller: _amountController,
+                    focusNode: _amountFocusNode,
+                    autofocus: true,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: _onAmountChanged,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: textColor,
+                    ),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: cardBg,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 11,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: borderColor),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: borderColor),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(
+                          color: AppColors.primary,
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 5),
+
+                // Kategori (if not transfer)
+                if (_type != 'transfer') ...[
+                  _buildFormField(
+                    label: 'Kategori',
+                    labelColor: labelColor,
+                    child: GestureDetector(
+                      onTap: _showCategoryDialog,
+                      child: Container(
+                        height: 44,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: cardBg,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: borderColor),
+                        ),
+                        child: Row(
                           children: [
-                            Text(
-                              _selectedTargetAccount?.name ?? 'Pilih Akun Tujuan',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                            ),
-                            if (_selectedTargetAccount != null)
-                              Text(
-                                '( ${CurrencyFormatter.format(_selectedTargetAccount!.balance, currency)} )',
-                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            if (_selectedCategory != null)
+                              Icon(
+                                AppIcons.getIcon(_selectedCategory!.icon),
+                                color: AppColors.parseHex(
+                                  _selectedCategory!.color,
+                                ),
+                                size: 20,
                               ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _selectedCategory?.name ?? 'Pilih Kategori',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                  color: _selectedCategory != null
+                                      ? textColor
+                                      : hintColor,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: subtextColor,
+                              size: 20,
+                            ),
                           ],
                         ),
                       ),
-                      Container(
-                        width: 22,
-                        height: 22,
-                        decoration: const BoxDecoration(
-                          color: Colors.black,
-                          shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                ],
+
+                // Akun Sumber
+                _buildFormField(
+                  label: _type == 'transfer' ? 'Akun Sumber' : 'Akun',
+                  labelColor: labelColor,
+                  child: GestureDetector(
+                    onTap: () => _showAccountDialog(isTarget: false),
+                    child: Container(
+                      height: 44,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: borderColor),
+                      ),
+                      child: Row(
+                        children: [
+                          if (_selectedAccount != null)
+                            Icon(
+                              AppIcons.getIcon(_selectedAccount!.icon),
+                              color: AppColors.parseHex(
+                                _selectedAccount!.iconColor,
+                              ),
+                              size: 20,
+                            ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    _selectedAccount?.name ?? 'Pilih Akun',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                      color: textColor,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (_selectedAccount != null) ...[
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '(${CurrencyFormatter.format(_selectedAccount!.balance, currency)})',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: subtextColor,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: subtextColor,
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 5),
+
+                // Transfer specific rows
+                if (_type == 'transfer') ...[
+                  _buildFormField(
+                    label: 'Akun Tujuan',
+                    labelColor: labelColor,
+                    child: GestureDetector(
+                      onTap: () => _showAccountDialog(isTarget: true),
+                      child: Container(
+                        height: 44,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: cardBg,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: borderColor),
                         ),
-                        child: const Icon(
-                          Icons.arrow_drop_down,
-                          color: Colors.white,
-                          size: 18,
+                        child: Row(
+                          children: [
+                            if (_selectedTargetAccount != null)
+                              Icon(
+                                AppIcons.getIcon(_selectedTargetAccount!.icon),
+                                color: AppColors.parseHex(
+                                  _selectedTargetAccount!.iconColor,
+                                ),
+                                size: 20,
+                              ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      _selectedTargetAccount?.name ??
+                                          'Pilih Akun Tujuan',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                        color: textColor,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (_selectedTargetAccount != null) ...[
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '(${CurrencyFormatter.format(_selectedTargetAccount!.balance, currency)})',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: subtextColor,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: subtextColor,
+                              size: 20,
+                            ),
+                          ],
                         ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  _buildFormField(
+                    label: 'Biaya Admin (${currency.symbol})',
+                    labelColor: labelColor,
+                    child: TextField(
+                      controller: _feeController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: _onFeeChanged,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: textColor,
+                      ),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: cardBg,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 11,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: borderColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: borderColor),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                            color: AppColors.primary,
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                ],
+
+                // Deskripsi & Lampiran Foto
+                _buildFormField(
+                  label: 'Deskripsi & Foto (Opsional)',
+                  labelColor: labelColor,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _descController,
+                          maxLines: 3,
+                          style: TextStyle(fontSize: 13, color: textColor),
+                          decoration: InputDecoration(
+                            hintText: 'Tambahkan catatan transaksi...',
+                            hintStyle: TextStyle(
+                              color: hintColor,
+                              fontSize: 13,
+                            ),
+                            filled: true,
+                            fillColor: cardBg,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: borderColor),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: borderColor),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(
+                                color: AppColors.primary,
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Column(
+                        children: [
+                          InkWell(
+                            onTap: () => _pickImage(ImageSource.camera),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              width: 40,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          InkWell(
+                            onTap: () => _pickImage(ImageSource.gallery),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              width: 40,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.photo_library,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            _buildFormRow(
-              label: 'Biaya Admin (${currency.symbol})',
-              child: TextField(
-                controller: _feeController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                onChanged: _onFeeChanged,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.grey.shade100,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-          ],
 
-          // Deskripsi Row + Photo Buttons (Screenshot 3)
-          _buildFormRow(
-            label: 'Deskripsi',
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _descController,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: 'Tambahkan deskripsi (opsional)',
-                      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      contentPadding: const EdgeInsets.all(12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Column(
-                  children: [
-                    InkWell(
-                      onTap: () => _pickImage(ImageSource.camera),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(10),
+                // Image preview if selected
+                if (_imagePath != null && _imagePath!.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Stack(
+                      alignment: Alignment.topRight,
+                      children: [
+                        File(_imagePath!).existsSync()
+                            ? Image.file(
+                                File(_imagePath!),
+                                height: 100,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              )
+                            : Container(),
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: InkWell(
+                            onTap: () => setState(() => _imagePath = null),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                            ),
+                          ),
                         ),
-                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 22),
-                      ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    InkWell(
-                      onTap: () => _pickImage(ImageSource.gallery),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.folder, color: Colors.white, size: 22),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
+                const SizedBox(height: 12),
               ],
-            ),
-          ),
-
-          // Image preview if selected
-          if (_imagePath != null && _imagePath!.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Stack(
-              alignment: Alignment.topRight,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: File(_imagePath!).existsSync()
-                      ? Image.file(
-                          File(_imagePath!),
-                          height: 120,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        )
-                      : Container(),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.cancel, color: Colors.red),
-                  onPressed: () => setState(() => _imagePath = null),
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 36),
-
-          // Full-width Bottom Button matching Screenshot 3
-          ActionButton(
-            title: widget.editTransaction != null ? 'Update Transaksi' : 'Tambah Transaksi',
-            height: 50,
-            borderRadius: 10,
-            isLoading: _isLoading,
-            onPress: _submit,
-          ),
-          const SizedBox(height: 40),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFormRow({required String label, required Widget child}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: 110,
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
             ),
           ),
         ),
-        Expanded(child: child),
+
+        // Sticky Bottom Action Bar pinned above the keyboard
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          decoration: BoxDecoration(
+            color: theme.scaffoldBackgroundColor,
+            border: Border(
+              top: BorderSide(color: borderColor.withOpacity(0.6), width: 1),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: ActionButton(
+              title: widget.editTransaction != null
+                  ? 'Update Transaksi'
+                  : 'Tambah Transaksi',
+              height: 48,
+              borderRadius: 8,
+              isLoading: _isLoading,
+              onPress: _submit,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFormField({
+    required String label,
+    required Widget child,
+    Color? labelColor,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: labelColor ?? const Color(0xFF64748B),
+          ),
+        ),
+        const SizedBox(height: 5),
+        child,
       ],
     );
   }
