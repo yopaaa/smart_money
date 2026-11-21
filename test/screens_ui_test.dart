@@ -9,6 +9,7 @@ import 'package:smart_money/constants/app_icons.dart';
 import 'package:smart_money/screens/accounts/create_account_screen.dart';
 import 'package:smart_money/screens/home/history_screen.dart';
 import 'package:smart_money/screens/settings/settings_screen.dart';
+import 'package:smart_money/screens/splash/splash_screen.dart';
 import 'package:smart_money/screens/statistics/stats_screen.dart';
 import 'package:smart_money/widgets/animated_tab_bar.dart';
 
@@ -134,5 +135,17 @@ void main() {
     expect(find.byType(PageView), findsOneWidget);
     expect(find.byIcon(Ionicons.list), findsOneWidget);
     expect(find.byIcon(Ionicons.images), findsOneWidget);
+  });
+
+  testWidgets('SplashScreen renders logo and title', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: SplashScreen(),
+      ),
+    );
+
+    expect(find.text('Smart Money'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
   });
 }

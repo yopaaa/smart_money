@@ -4,6 +4,7 @@ import 'constants/app_colors.dart';
 import 'providers/theme_provider.dart';
 import 'providers/transaction_provider.dart';
 import 'screens/home/main_navigation_screen.dart';
+import 'screens/splash/splash_screen.dart';
 import 'screens/welcome/welcome_screen.dart';
 
 void main() async {
@@ -34,11 +35,7 @@ class SmartMoneyApp extends StatelessWidget {
       darkTheme: AppColors.darkTheme,
       themeMode: themeProvider.themeMode,
       home: txProvider.isLoading
-          ? const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
-            )
+          ? const SplashScreen()
           : txProvider.isNewUser
               ? const WelcomeScreen()
               : const MainNavigationScreen(),
