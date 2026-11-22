@@ -63,7 +63,9 @@ class TransactionProvider extends ChangeNotifier {
 
   Future<void> _groupAccounts() async {
     try {
-      final jsonStr = await rootBundle.loadString('assets/json/groupLabels.json');
+      final jsonStr = await rootBundle.loadString(
+        'assets/json/groupLabels.json',
+      );
       final List<dynamic> groupLabels = jsonDecode(jsonStr);
 
       final Map<String, List<AccountModel>> groupMap = {};
@@ -83,13 +85,15 @@ class TransactionProvider extends ChangeNotifier {
       for (var label in groupLabels) {
         final key = label['key']?.toString() ?? '';
         if (groupMap.containsKey(key)) {
-          groups.add(AccountGroup(
-            title: label['name']?.toString() ?? key,
-            icon: label['icon']?.toString() ?? 'wallet',
-            color: label['color']?.toString() ?? '#81c784',
-            balance: groupBalance[key] ?? 0,
-            accounts: groupMap[key]!,
-          ));
+          groups.add(
+            AccountGroup(
+              title: label['name']?.toString() ?? key,
+              icon: label['icon']?.toString() ?? 'wallet',
+              color: label['color']?.toString() ?? '#81c784',
+              balance: groupBalance[key] ?? 0,
+              accounts: groupMap[key]!,
+            ),
+          );
         }
       }
 
@@ -112,7 +116,10 @@ class TransactionProvider extends ChangeNotifier {
 
   // ================= ACCOUNT ACTIONS =================
 
-  Future<void> addAccount(AccountModel account, {int initialBalance = 0}) async {
+  Future<void> addAccount(
+    AccountModel account, {
+    int initialBalance = 0,
+  }) async {
     await _db.addAccount(account, initialBalance: initialBalance);
     await loadData();
   }

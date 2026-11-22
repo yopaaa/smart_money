@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../constants/app_colors.dart';
 import '../../models/transaction_model.dart';
 import '../../providers/transaction_provider.dart';
-import '../../utils/currency_formatter.dart';
 import '../../utils/date_utils.dart';
 import '../../widgets/transaction_item.dart';
 import '../transactions/transaction_detail_screen.dart';
@@ -66,7 +64,10 @@ class _SearchScreenState extends State<SearchScreen> {
         children: [
           // Search input bar
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
+            ),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -81,7 +82,10 @@ class _SearchScreenState extends State<SearchScreen> {
                     : null,
                 filled: true,
                 fillColor: Colors.grey.shade100,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide(color: Colors.grey.shade300),
@@ -96,7 +100,10 @@ class _SearchScreenState extends State<SearchScreen> {
 
           // 3 Filter Pills: Income | Expense | Transfer (Screenshot 8)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 6.0,
+            ),
             child: Row(
               children: [
                 _buildFilterPill('income', 'Income'),
@@ -119,57 +126,25 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     itemCount: groupedList.length,
                     itemBuilder: (context, groupIndex) {
                       final group = groupedList[groupIndex];
-                      final isPositive = group.total >= 0;
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              top: 12.0,
-                              bottom: 6.0,
-                              left: 4.0,
-                              right: 4.0,
+                      return TransactionGroupWidget(
+                        group: group,
+                        currency: currency,
+                        onTransactionTap: (tx) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  TransactionDetailScreen(transactionId: tx.id),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  group.date,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  CurrencyFormatter.format(group.total, currency),
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: isPositive ? AppColors.income : AppColors.expense,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          ...group.transactions.map((tx) {
-                            return TransactionItemTile(
-                              item: tx,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => TransactionDetailScreen(transactionId: tx.id),
-                                  ),
-                                ).then((_) => _performSearch());
-                              },
-                            );
-                          }),
-                        ],
+                          ).then((_) => _performSearch());
+                        },
                       );
                     },
                   ),

@@ -328,58 +328,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
           )
         else
           ...groupedList.map((group) {
-            final isPositive = group.total >= 0;
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(
-                    top: 14.0,
-                    bottom: 6.0,
-                    left: 2.0,
-                    right: 2.0,
+            return TransactionGroupWidget(
+              group: group,
+              currency: currency,
+              onTransactionTap: (tx) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        TransactionDetailScreen(transactionId: tx.id),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        group.date,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: titleColor,
-                        ),
-                      ),
-                      Text(
-                        CurrencyFormatter.format(group.total, currency),
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: isPositive
-                              ? AppColors.income
-                              : AppColors.expense,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Individual transaction cards
-                ...group.transactions.map((tx) {
-                  return TransactionItemTile(
-                    item: tx,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              TransactionDetailScreen(transactionId: tx.id),
-                        ),
-                      ).then((_) => _fetchTransactions());
-                    },
-                  );
-                }),
-              ],
+                ).then((_) => _fetchTransactions());
+              },
             );
           }),
       ],

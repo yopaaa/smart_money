@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ionicons/ionicons.dart';
+import 'package:smart_money/models/currency_model.dart';
+import 'package:smart_money/models/transaction_model.dart';
 import 'package:smart_money/utils/date_utils.dart';
 import 'package:smart_money/widgets/action_button.dart';
 import 'package:smart_money/widgets/animated_tab_bar.dart';
@@ -8,6 +10,7 @@ import 'package:smart_money/widgets/custom_card.dart';
 import 'package:smart_money/widgets/period_navigator.dart';
 import 'package:smart_money/widgets/period_picker_dialog.dart';
 import 'package:smart_money/widgets/slide_select.dart';
+import 'package:smart_money/widgets/transaction_item.dart';
 
 void main() {
   group('AnimatedTabBar Component Tests', () {
@@ -251,7 +254,6 @@ void main() {
           ),
         );
 
-        expect(find.text('Bulan'), findsOneWidget);
         expect(find.text('September 2026'), findsOneWidget);
 
         // Tap next chevron
@@ -275,9 +277,84 @@ void main() {
         await tester.tap(find.text('Tahun'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Tahun'), findsOneWidget);
         expect(find.text('2026'), findsOneWidget);
       },
     );
+  });
+
+  group('TransactionDateHeader and TransactionGroupWidget Tests', () {
+    testWidgets(
+      'renders specific date with big day number, day of week, month year, and formatted total',
+      (tester) async {
+        final txDate = DateTime(2026, 11, 18, 12, 0);
+        final group = GroupedTransaction(
+          date: '18 Nov 2026',
+          timestamp: txDate.millisecondsSinceEpoch,
+          total: -1280000,
+          transactions: [
+            TransactionModel(
+              id: 'tx1',
+              title: 'beli hp samsung z flip 5',
+              amount: 1192000,
+              type: 'expense',
+              category: 'cat1',
+              accountId: 'acc1',
+              createdAt: txDate.toIso8601String(),
+            ),
+            TransactionModel(
+              id: 'tx2',
+              title: 'kouta internet',
+              amount: 88000,
+              type: 'expense',
+              category: 'cat1',
+              accountId: 'acc1',
+              createdAt: txDate.toIso8601String(),
+            ),
+          ],
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: TransactionDateHeader(
+                group: group,
+                currency: CurrencyModel.defaultCurrency,
+              ),
+            ),
+          ),
+        );
+
+        expect(find.text('18'), findsOneWidget);
+        expect(find.text('Wednesday'), findsOneWidget);
+        expect(find.text('Nov 2026'), findsOneWidget);
+        expect(find.text('-Rp 1.280.000'), findsOneWidget);
+      },
+    );
+
+    testWidgets('renders Yesterday date header format with total', (
+      tester,
+    ) async {
+      final yesterday = DateTime.now().subtract(const Duration(days: 1));
+      final group = GroupedTransaction(
+        date: 'Yesterday',
+        timestamp: yesterday.millisecondsSinceEpoch,
+        total: -120000,
+        transactions: [],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TransactionDateHeader(
+              group: group,
+              currency: CurrencyModel.defaultCurrency,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Yesterday'), findsOneWidget);
+      expect(find.text('-Rp 120.000'), findsOneWidget);
+    });
   });
 }

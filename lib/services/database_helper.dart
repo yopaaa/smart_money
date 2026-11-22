@@ -31,11 +31,7 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = p.join(dbPath, filePath);
 
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: _createDB,
-    );
+    return await openDatabase(path, version: 1, onCreate: _createDB);
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -108,12 +104,24 @@ class DatabaseHelper {
     ''');
 
     // Create performance indexes
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON $transactionTableName (createdAt DESC);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_account ON $transactionTableName (accountId);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_target_account ON $transactionTableName (targetAccountId);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_category ON $transactionTableName (category);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_type ON $transactionTableName (type);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_categories_type ON $categoriesTableName (type);');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON $transactionTableName (createdAt DESC);',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_transactions_account ON $transactionTableName (accountId);',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_transactions_target_account ON $transactionTableName (targetAccountId);',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_transactions_category ON $transactionTableName (category);',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_transactions_type ON $transactionTableName (type);',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_categories_type ON $categoriesTableName (type);',
+    );
 
     // Seed default categories
     await _seedDefaultCategories(db);
@@ -121,10 +129,14 @@ class DatabaseHelper {
 
   Future<void> _seedDefaultCategories(Database db) async {
     try {
-      final existing = await db.rawQuery('SELECT COUNT(*) as total FROM $categoriesTableName');
+      final existing = await db.rawQuery(
+        'SELECT COUNT(*) as total FROM $categoriesTableName',
+      );
       final count = Sqflite.firstIntValue(existing) ?? 0;
       if (count == 0) {
-        final jsonStr = await rootBundle.loadString('assets/json/defaultCategories.json');
+        final jsonStr = await rootBundle.loadString(
+          'assets/json/defaultCategories.json',
+        );
         final List<dynamic> list = jsonDecode(jsonStr);
         final batch = db.batch();
         for (var item in list) {
@@ -153,14 +165,22 @@ class DatabaseHelper {
 
   Future<AccountModel?> getAccountById(String id) async {
     final db = await database;
-    final maps = await db.query(accountTableName, where: 'id = ?', whereArgs: [id], limit: 1);
+    final maps = await db.query(
+      accountTableName,
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
     if (maps.isNotEmpty) {
       return AccountModel.fromMap(maps.first);
     }
     return null;
   }
 
-  Future<void> addAccount(AccountModel account, {int initialBalance = 0}) async {
+  Future<void> addAccount(
+    AccountModel account, {
+    int initialBalance = 0,
+  }) async {
     final db = await database;
     final accountId = account.id.isEmpty ? _uuid.v4() : account.id;
 
@@ -174,16 +194,18 @@ class DatabaseHelper {
       final transactionTitle = 'Initial balance for ${account.name}';
       final nowMs = DateTime.now().millisecondsSinceEpoch.toString();
 
-      await addTransaction(TransactionModel(
-        id: _uuid.v4(),
-        title: transactionTitle,
-        description: 'Initial balance setup for account ${account.name}',
-        amount: initialBalance.abs(),
-        type: transactionType,
-        accountId: accountId,
-        createdAt: nowMs,
-        category: 'initial-balance',
-      ));
+      await addTransaction(
+        TransactionModel(
+          id: _uuid.v4(),
+          title: transactionTitle,
+          description: 'Initial balance setup for account ${account.name}',
+          amount: initialBalance.abs(),
+          type: transactionType,
+          accountId: accountId,
+          createdAt: nowMs,
+          category: 'initial-balance',
+        ),
+      );
     }
   }
 
@@ -215,13 +237,21 @@ class DatabaseHelper {
 
   Future<List<TransactionModel>> getTransactions() async {
     final db = await database;
-    final maps = await db.query(transactionTableName, orderBy: 'createdAt DESC');
+    final maps = await db.query(
+      transactionTableName,
+      orderBy: 'createdAt DESC',
+    );
     return maps.map((e) => TransactionModel.fromMap(e)).toList();
   }
 
   Future<TransactionModel?> getTransactionById(String id) async {
     final db = await database;
-    final maps = await db.query(transactionTableName, where: 'id = ?', whereArgs: [id], limit: 1);
+    final maps = await db.query(
+      transactionTableName,
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
     if (maps.isNotEmpty) {
       return TransactionModel.fromMap(maps.first);
     }
@@ -233,21 +263,32 @@ class DatabaseHelper {
     final txId = tx.id.isEmpty ? _uuid.v4() : tx.id;
 
     await db.transaction((txn) async {
-      await txn.insert(
-        transactionTableName,
-        tx.copyWith(id: txId).toMap(),
-      );
+      await txn.insert(transactionTableName, tx.copyWith(id: txId).toMap());
 
-      final accounts = await txn.query(accountTableName, where: 'id = ?', whereArgs: [tx.accountId]);
+      final accounts = await txn.query(
+        accountTableName,
+        where: 'id = ?',
+        whereArgs: [tx.accountId],
+      );
       if (accounts.isEmpty) throw Exception('Akun tidak ditemukan');
       final currentBalance = (accounts.first['balance'] as num).toInt();
 
       if (tx.type == 'income') {
         final newBalance = currentBalance + tx.amount;
-        await txn.update(accountTableName, {'balance': newBalance}, where: 'id = ?', whereArgs: [tx.accountId]);
+        await txn.update(
+          accountTableName,
+          {'balance': newBalance},
+          where: 'id = ?',
+          whereArgs: [tx.accountId],
+        );
       } else if (tx.type == 'expense') {
         final newBalance = currentBalance - tx.amount;
-        await txn.update(accountTableName, {'balance': newBalance}, where: 'id = ?', whereArgs: [tx.accountId]);
+        await txn.update(
+          accountTableName,
+          {'balance': newBalance},
+          where: 'id = ?',
+          whereArgs: [tx.accountId],
+        );
       } else if (tx.type == 'transfer') {
         if (tx.targetAccountId == null || tx.targetAccountId!.isEmpty) {
           throw Exception('Akun tujuan transfer harus diisi');
@@ -256,19 +297,39 @@ class DatabaseHelper {
         // Deduct from source account (amount + fee)
         final totalDeduction = tx.amount + tx.fee;
         final newSourceBalance = currentBalance - totalDeduction;
-        await txn.update(accountTableName, {'balance': newSourceBalance}, where: 'id = ?', whereArgs: [tx.accountId]);
+        await txn.update(
+          accountTableName,
+          {'balance': newSourceBalance},
+          where: 'id = ?',
+          whereArgs: [tx.accountId],
+        );
 
         // Add to target account
-        final targetAccounts = await txn.query(accountTableName, where: 'id = ?', whereArgs: [tx.targetAccountId]);
-        if (targetAccounts.isEmpty) throw Exception('Akun tujuan tidak ditemukan');
-        final targetCurrentBalance = (targetAccounts.first['balance'] as num).toInt();
+        final targetAccounts = await txn.query(
+          accountTableName,
+          where: 'id = ?',
+          whereArgs: [tx.targetAccountId],
+        );
+        if (targetAccounts.isEmpty) {
+          throw Exception('Akun tujuan tidak ditemukan');
+        }
+        final targetCurrentBalance = (targetAccounts.first['balance'] as num)
+            .toInt();
         final newTargetBalance = targetCurrentBalance + tx.amount;
-        await txn.update(accountTableName, {'balance': newTargetBalance}, where: 'id = ?', whereArgs: [tx.targetAccountId]);
+        await txn.update(
+          accountTableName,
+          {'balance': newTargetBalance},
+          where: 'id = ?',
+          whereArgs: [tx.targetAccountId],
+        );
 
         // Record fee as separate expense transaction if exists
         if (tx.fee > 0) {
           final feeId = _uuid.v4();
-          final feeTime = (int.tryParse(tx.createdAt) ?? DateTime.now().millisecondsSinceEpoch) + 1;
+          final feeTime =
+              (int.tryParse(tx.createdAt) ??
+                  DateTime.now().millisecondsSinceEpoch) +
+              1;
           await txn.insert(transactionTableName, {
             'id': feeId,
             'title': 'Biaya transfer',
@@ -291,7 +352,11 @@ class DatabaseHelper {
     final db = await database;
 
     await db.transaction((txn) async {
-      final oldTxMaps = await txn.query(transactionTableName, where: 'id = ?', whereArgs: [id]);
+      final oldTxMaps = await txn.query(
+        transactionTableName,
+        where: 'id = ?',
+        whereArgs: [id],
+      );
       if (oldTxMaps.isEmpty) throw Exception('Transaksi tidak ditemukan');
       final oldTx = TransactionModel.fromMap(oldTxMaps.first);
 
@@ -369,7 +434,11 @@ class DatabaseHelper {
     final db = await database;
 
     await db.transaction((txn) async {
-      final txMaps = await txn.query(transactionTableName, where: 'id = ?', whereArgs: [id]);
+      final txMaps = await txn.query(
+        transactionTableName,
+        where: 'id = ?',
+        whereArgs: [id],
+      );
       if (txMaps.isEmpty) throw Exception('Transaksi tidak ditemukan');
       final tx = TransactionModel.fromMap(txMaps.first);
 
@@ -431,7 +500,10 @@ class DatabaseHelper {
 
   Future<List<TransactionModel>> getDeletedTransactions() async {
     final db = await database;
-    final maps = await db.query(deletedTransactionsTableName, orderBy: 'deletedAt DESC');
+    final maps = await db.query(
+      deletedTransactionsTableName,
+      orderBy: 'deletedAt DESC',
+    );
     return maps.map((e) => TransactionModel.fromMap(e)).toList();
   }
 
@@ -439,7 +511,11 @@ class DatabaseHelper {
     final db = await database;
 
     await db.transaction((txn) async {
-      final maps = await txn.query(deletedTransactionsTableName, where: 'id = ?', whereArgs: [id]);
+      final maps = await txn.query(
+        deletedTransactionsTableName,
+        where: 'id = ?',
+        whereArgs: [id],
+      );
       if (maps.isEmpty) throw Exception('Transaksi terhapus tidak ditemukan');
       final tx = TransactionModel.fromMap(maps.first);
 
@@ -460,25 +536,45 @@ class DatabaseHelper {
 
       // Restore balances
       if (tx.type == 'income') {
-        await txn.rawUpdate('UPDATE $accountTableName SET balance = balance + ? WHERE id = ?', [tx.amount, tx.accountId]);
+        await txn.rawUpdate(
+          'UPDATE $accountTableName SET balance = balance + ? WHERE id = ?',
+          [tx.amount, tx.accountId],
+        );
       } else if (tx.type == 'expense') {
-        await txn.rawUpdate('UPDATE $accountTableName SET balance = balance - ? WHERE id = ?', [tx.amount, tx.accountId]);
+        await txn.rawUpdate(
+          'UPDATE $accountTableName SET balance = balance - ? WHERE id = ?',
+          [tx.amount, tx.accountId],
+        );
       } else if (tx.type == 'transfer') {
         final totalDeduction = tx.amount + tx.fee;
-        await txn.rawUpdate('UPDATE $accountTableName SET balance = balance - ? WHERE id = ?', [totalDeduction, tx.accountId]);
+        await txn.rawUpdate(
+          'UPDATE $accountTableName SET balance = balance - ? WHERE id = ?',
+          [totalDeduction, tx.accountId],
+        );
         if (tx.targetAccountId != null) {
-          await txn.rawUpdate('UPDATE $accountTableName SET balance = balance + ? WHERE id = ?', [tx.amount, tx.targetAccountId]);
+          await txn.rawUpdate(
+            'UPDATE $accountTableName SET balance = balance + ? WHERE id = ?',
+            [tx.amount, tx.targetAccountId],
+          );
         }
       }
 
       // Remove from deleted_transactions
-      await txn.delete(deletedTransactionsTableName, where: 'id = ?', whereArgs: [id]);
+      await txn.delete(
+        deletedTransactionsTableName,
+        where: 'id = ?',
+        whereArgs: [id],
+      );
     });
   }
 
   Future<void> permanentlyDeleteTransaction(String id) async {
     final db = await database;
-    await db.delete(deletedTransactionsTableName, where: 'id = ?', whereArgs: [id]);
+    await db.delete(
+      deletedTransactionsTableName,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<void> clearAllDeletedTransactions() async {
@@ -577,7 +673,12 @@ class DatabaseHelper {
   Future<CategoryModel?> getCategoryById(String? id) async {
     if (id == null || id.isEmpty) return null;
     final db = await database;
-    final maps = await db.query(categoriesTableName, where: 'id = ?', whereArgs: [id], limit: 1);
+    final maps = await db.query(
+      categoriesTableName,
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
     if (maps.isNotEmpty) {
       return CategoryModel.fromMap(maps.first);
     }
@@ -586,7 +687,11 @@ class DatabaseHelper {
 
   Future<List<CategoryModel>> getCategoriesByType(String type) async {
     final db = await database;
-    final maps = await db.query(categoriesTableName, where: 'type = ?', whereArgs: [type]);
+    final maps = await db.query(
+      categoriesTableName,
+      where: 'type = ?',
+      whereArgs: [type],
+    );
     return maps.map((e) => CategoryModel.fromMap(e)).toList();
   }
 
@@ -622,9 +727,18 @@ class DatabaseHelper {
     final db = await database;
     final valueStr = value is String ? value : jsonEncode(value);
 
-    final existing = await db.query(settingsTableName, where: 'key = ?', whereArgs: [key]);
+    final existing = await db.query(
+      settingsTableName,
+      where: 'key = ?',
+      whereArgs: [key],
+    );
     if (existing.isNotEmpty) {
-      await db.update(settingsTableName, {'value': valueStr}, where: 'key = ?', whereArgs: [key]);
+      await db.update(
+        settingsTableName,
+        {'value': valueStr},
+        where: 'key = ?',
+        whereArgs: [key],
+      );
     } else {
       await db.insert(settingsTableName, {
         'id': _uuid.v4(),
@@ -636,7 +750,11 @@ class DatabaseHelper {
 
   Future<dynamic> getSetting(String key) async {
     final db = await database;
-    final maps = await db.query(settingsTableName, where: 'key = ?', whereArgs: [key]);
+    final maps = await db.query(
+      settingsTableName,
+      where: 'key = ?',
+      whereArgs: [key],
+    );
     if (maps.isNotEmpty) {
       final val = maps.first['value'] as String?;
       if (val == null) return null;
@@ -682,7 +800,8 @@ class DatabaseHelper {
           "SELECT COALESCE(SUM(amount), 0) as total FROM $transactionTableName WHERE accountId = ? AND type = 'transfer'",
           [accId],
         );
-        final transferOut = (transferOutRes.first['total'] as num?)?.toInt() ?? 0;
+        final transferOut =
+            (transferOutRes.first['total'] as num?)?.toInt() ?? 0;
 
         // Transfer in to this account
         final transferInRes = await txn.rawQuery(

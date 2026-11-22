@@ -116,6 +116,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final unselectedColor = isDark ? const Color(0xFF808080) : const Color(0xFF71717A);
 
     return Scaffold(
+      extendBody: true,
       body: IndexedStack(
         index: _currentIndex,
         children: _pages,
@@ -146,11 +147,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
       // Atur nilai offsetY di sini untuk kedalaman posisi tombol tengah
       floatingActionButtonLocation: const CustomFloatingActionButtonLocation(
-        offsetY: 16.0,
+        offsetY: 0,
       ),
 
       bottomNavigationBar: BottomAppBar(
-        height: 75,
+        height: 90,
         padding: EdgeInsets.zero,
         shape: const CustomNotchedShape(cornerRadius: 15.0),
         notchMargin: 8.0,

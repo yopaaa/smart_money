@@ -6,6 +6,7 @@ import '../../models/account_model.dart';
 import '../../models/transaction_model.dart';
 import '../../providers/transaction_provider.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/date_utils.dart';
 import '../../widgets/transaction_item.dart';
 import '../accounts/edit_account_screen.dart';
 import 'transaction_detail_screen.dart';
@@ -13,10 +14,7 @@ import 'transaction_detail_screen.dart';
 class PerAccountScreen extends StatefulWidget {
   final AccountModel account;
 
-  const PerAccountScreen({
-    super.key,
-    required this.account,
-  });
+  const PerAccountScreen({super.key, required this.account});
 
   @override
   State<PerAccountScreen> createState() => _PerAccountScreenState();
@@ -41,9 +39,7 @@ class _PerAccountScreenState extends State<PerAccountScreen> {
       _account = updatedAccount;
     }
 
-    final txs = await provider.filterTransactions(
-      accountId: _account.id,
-    );
+    final txs = await provider.filterTransactions(accountId: _account.id);
 
     if (mounted) {
       setState(() {
@@ -59,6 +55,7 @@ class _PerAccountScreenState extends State<PerAccountScreen> {
     final currency = provider.currency;
     final theme = Theme.of(context);
     final iconColor = AppColors.parseHex(_account.iconColor);
+    final groupedList = AppDateUtils.groupTransactionsByDate(_transactions);
 
     return Scaffold(
       appBar: AppBar(
@@ -107,7 +104,10 @@ class _PerAccountScreenState extends State<PerAccountScreen> {
                       const SizedBox(height: 10),
                       Text(
                         _account.name,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -124,7 +124,10 @@ class _PerAccountScreenState extends State<PerAccountScreen> {
                         const SizedBox(height: 4),
                         Text(
                           _account.description,
-                          style: const TextStyle(fontSize: 13, color: Colors.grey),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey,
+                          ),
                         ),
                       ],
                     ],
@@ -132,7 +135,7 @@ class _PerAccountScreenState extends State<PerAccountScreen> {
                 ),
                 const Divider(height: 1),
                 Expanded(
-                  child: _transactions.isEmpty
+                  child: groupedList.isEmpty
                       ? const Center(
                           child: Text(
                             'No transactions for this account yet',
@@ -140,16 +143,23 @@ class _PerAccountScreenState extends State<PerAccountScreen> {
                           ),
                         )
                       : ListView.builder(
-                          itemCount: _transactions.length,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 8.0,
+                          ),
+                          itemCount: groupedList.length,
                           itemBuilder: (context, index) {
-                            final tx = _transactions[index];
-                            return TransactionItemTile(
-                              item: tx,
-                              onTap: () {
+                            final group = groupedList[index];
+                            return TransactionGroupWidget(
+                              group: group,
+                              currency: currency,
+                              onTransactionTap: (tx) {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => TransactionDetailScreen(transactionId: tx.id),
+                                    builder: (_) => TransactionDetailScreen(
+                                      transactionId: tx.id,
+                                    ),
                                   ),
                                 ).then((_) => _loadTransactions());
                               },

@@ -323,6 +323,8 @@ class _StatsScreenState extends State<StatsScreen> {
                                 MaterialPageRoute(
                                   builder: (_) => PerCategoryScreen(
                                     category: item.category,
+                                    initialDate: _selectedDate,
+                                    initialViewMode: _viewMode,
                                     startDate: AppDateUtils.getStartOfPeriod(
                                       _selectedDate,
                                       _viewMode,
