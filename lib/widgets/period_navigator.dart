@@ -62,6 +62,7 @@ class PeriodNavigator extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         
+                        const SizedBox(width: 8),
                         Flexible(
                           child: Text(
                             title,
@@ -74,7 +75,12 @@ class PeriodNavigator extends StatelessWidget {
                             ),
                           ),
                         ),
-                        
+                        const SizedBox(width: 4),
+                        // Icon(
+                        //   Icons.keyboard_arrow_down_rounded,
+                        //   size: 18,
+                        //   color: textColor.withOpacity(0.5),
+                        // ),
                       ],
                     ),
                   ),

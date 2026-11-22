@@ -16,7 +16,8 @@ class TransactionProvider extends ChangeNotifier {
   Map<String, CategoryModel> _categoryMap = {};
   CurrencyModel _currency = CurrencyModel.defaultCurrency;
 
-  bool _isLoading = true;
+  bool _isLoading = false;
+  bool _isInitialized = false;
   bool _isNewUser = false;
 
   List<AccountModel> get accounts => _accounts;
@@ -24,6 +25,7 @@ class TransactionProvider extends ChangeNotifier {
   List<CategoryModel> get categories => _categories;
   CurrencyModel get currency => _currency;
   bool get isLoading => _isLoading;
+  bool get isInitialized => _isInitialized;
   bool get isNewUser => _isNewUser;
 
   TransactionProvider() {
@@ -32,7 +34,6 @@ class TransactionProvider extends ChangeNotifier {
 
   Future<void> loadData() async {
     _isLoading = true;
-    notifyListeners();
 
     try {
       // Load currency setting
@@ -55,6 +56,7 @@ class TransactionProvider extends ChangeNotifier {
       debugPrint('Error loading data: $e');
     } finally {
       _isLoading = false;
+      _isInitialized = true;
       notifyListeners();
     }
   }

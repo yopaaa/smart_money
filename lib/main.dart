@@ -34,7 +34,7 @@ class SmartMoneyApp extends StatelessWidget {
       theme: AppColors.lightTheme,
       darkTheme: AppColors.darkTheme,
       themeMode: themeProvider.themeMode,
-      home: txProvider.isLoading
+      home: !txProvider.isInitialized
           ? const SplashScreen()
           : txProvider.isNewUser
               ? const WelcomeScreen()
