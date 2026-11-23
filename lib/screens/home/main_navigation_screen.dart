@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ionicons/ionicons.dart';
 import '../../constants/app_colors.dart';
 import '../accounts/accounts_screen.dart';
 import '../settings/settings_screen.dart';
 import '../statistics/stats_screen.dart';
 import '../transactions/transaction_form_screen.dart';
+import '../transactions/voice_transaction_dialog.dart';
 import 'history_screen.dart';
 
 // Custom location untuk mengatur kedalaman posisi tombol tengah
@@ -125,22 +127,32 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       floatingActionButton: SizedBox(
         width: 60,
         height: 60,
-        child: FloatingActionButton(
+        child: Material(
           shape: const CircleBorder(),
-          backgroundColor: AppColors.primary,
+          color: AppColors.primary,
           elevation: 4,
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const TransactionFormScreen(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const TransactionFormScreen(),
+                ),
+              );
+            },
+            onLongPress: () {
+              HapticFeedback.heavyImpact();
+              VoiceTransactionDialog.show(context: context);
+            },
+            child: const Center(
+              child: Icon(
+                Ionicons.add,
+                size: 28,
+                color: Colors.white,
               ),
-            );
-          },
-          child: const Icon(
-            Ionicons.add,
-            size: 28,
-            color: Colors.white,
+            ),
           ),
         ),
       ),
