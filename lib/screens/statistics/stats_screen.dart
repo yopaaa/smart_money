@@ -268,14 +268,7 @@ class _StatsScreenState extends State<StatsScreen> {
 
                   const SizedBox(height: 16),
 
-                  // Solid Divider Line matching ss/Untitled.jpg
-                  Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: isDark ? Colors.grey.shade800 : Colors.black87,
-                  ),
-
-                  const SizedBox(height: 16),
+                  
 
                   // Category Cards List matching ss/Untitled.jpg
                   ListView.builder(

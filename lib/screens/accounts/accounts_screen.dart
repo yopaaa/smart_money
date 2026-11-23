@@ -103,12 +103,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
               ),
               PopupMenuItem(
                 value: 'show_hide',
-                child: Text('Show/Hide'),
+                child: Text('Visibility'),
               ),
-              PopupMenuItem(
-                value: 'delete',
-                child: Text('Delete'),
-              ),
+             
               PopupMenuItem(
                 value: 'modify_order',
                 child: Text('Modify Orders'),

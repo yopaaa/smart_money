@@ -97,6 +97,20 @@ class TransactionProvider extends ChangeNotifier {
         }
       }
 
+      // Apply saved group order if exists
+      final savedOrder = await _db.getSetting('@account_group_order');
+      if (savedOrder != null && savedOrder is List && savedOrder.isNotEmpty) {
+        final orderList = savedOrder.map((e) => e.toString()).toList();
+        groups.sort((a, b) {
+          final idxA = orderList.indexOf(a.title);
+          final idxB = orderList.indexOf(b.title);
+          if (idxA == -1 && idxB == -1) return 0;
+          if (idxA == -1) return 1;
+          if (idxB == -1) return -1;
+          return idxA.compareTo(idxB);
+        });
+      }
+
       _groupedAccounts = groups;
     } catch (e) {
       debugPrint('Error grouping accounts: $e');
@@ -127,6 +141,32 @@ class TransactionProvider extends ChangeNotifier {
   Future<void> editAccount(String id, AccountModel updated) async {
     await _db.editAccount(id, updated);
     await loadData();
+  }
+
+  Future<void> updateAccountOrder(List<String> orderedTitles) async {
+    await _db.saveSetting('@account_group_order', orderedTitles);
+    await _groupAccounts();
+    notifyListeners();
+  }
+
+  Future<void> resetAccountOrder() async {
+    await _db.saveSetting('@account_group_order', null);
+    await _groupAccounts();
+    notifyListeners();
+  }
+
+  Future<List<String>> getDefaultGroupOrder() async {
+    try {
+      final jsonStr = await rootBundle.loadString(
+        'assets/json/groupLabels.json',
+      );
+      final List<dynamic> groupLabels = jsonDecode(jsonStr);
+      return groupLabels
+          .map((l) => l['name']?.toString() ?? l['key']?.toString() ?? '')
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<void> deleteAccount(String id) async {

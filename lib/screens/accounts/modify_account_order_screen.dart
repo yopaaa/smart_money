@@ -35,15 +35,27 @@ class _ModifyAccountOrderScreenState extends State<ModifyAccountOrderScreen> {
     });
   }
 
-  void _reset() {
+  Future<void> _reset() async {
     final provider = context.read<TransactionProvider>();
+    final defaultOrder = await provider.getDefaultGroupOrder();
     setState(() {
-      _orderedGroups = List.from(provider.groupedAccounts);
-      _hasChanges = false;
+      _orderedGroups.sort((a, b) {
+        final idxA = defaultOrder.indexOf(a.title);
+        final idxB = defaultOrder.indexOf(b.title);
+        if (idxA == -1 && idxB == -1) return 0;
+        if (idxA == -1) return 1;
+        if (idxB == -1) return -1;
+        return idxA.compareTo(idxB);
+      });
+      _hasChanges = true;
     });
   }
 
-  void _saveChanges() {
+  Future<void> _saveChanges() async {
+    final provider = context.read<TransactionProvider>();
+    final orderedTitles = _orderedGroups.map((g) => g.title).toList();
+    await provider.updateAccountOrder(orderedTitles);
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Account order saved successfully!')),
     );
