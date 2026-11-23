@@ -271,9 +271,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 15,
-                                          color: acc.isLiability || acc.balance < 0
-                                              ? AppColors.expense
-                                              : AppColors.primary,
+                                          color: acc.hidden
+                                              ? Colors.grey
+                                              : (acc.isLiability || acc.balance < 0
+                                                  ? AppColors.expense
+                                                  : AppColors.primary),
                                         ),
                                       ),
                                       const SizedBox(width: 6),
