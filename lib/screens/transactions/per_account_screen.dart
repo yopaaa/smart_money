@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
-import '../../constants/app_icons.dart';
 import '../../models/account_model.dart';
 import '../../models/transaction_model.dart';
 import '../../providers/transaction_provider.dart';
@@ -74,7 +73,6 @@ class _PerAccountScreenState extends State<PerAccountScreen> {
     final textColor = isDark ? Colors.white : const Color(0xFF11181C);
     final titleColor = isDark ? Colors.white : const Color(0xFF11181C);
     final descColor = isDark ? Colors.white60 : const Color(0xFF777777);
-    final iconColor = AppColors.parseHex(_account.iconColor);
     final groupedList = AppDateUtils.groupTransactionsByDate(_transactions);
 
     // Calculate overview totals for this account within the selected period
