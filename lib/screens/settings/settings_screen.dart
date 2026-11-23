@@ -9,7 +9,9 @@ import 'category_management_screen.dart';
 import 'currency_setting_screen.dart';
 import 'deleted_history_screen.dart';
 import 'file_export_screen.dart';
+import 'notification_settings_screen.dart';
 import 'report_screen.dart';
+import '../../services/notification_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -20,8 +22,26 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _biometricEnabled = false;
-  bool _notificationsEnabled = true;
+  bool _notificationsEnabled = false;
   bool _autoBackupEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotificationState();
+  }
+
+  Future<void> _loadNotificationState() async {
+    try {
+      final enabled =
+          await NotificationService.instance.isNotificationsEnabled();
+      if (mounted) {
+        setState(() {
+          _notificationsEnabled = enabled;
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -156,16 +176,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _buildCard(
                     cardBg: cardBg,
                     children: [
-                      _buildSwitchItem(
+                      _buildNavigationItem(
                         title: 'Notifications',
-                        subtitle: 'Manage notification settings',
-                        value: _notificationsEnabled,
+                        subtitle: _notificationsEnabled
+                            ? 'Aktif (Default: 3 PM & 8 PM)'
+                            : 'Kelola jadwal pengingat transaksi',
                         titleColor: itemTitleColor,
                         subtitleColor: subtitleColor,
-                        onChanged: (val) {
-                          setState(() {
-                            _notificationsEnabled = val;
-                          });
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const NotificationSettingsScreen(),
+                            ),
+                          );
+                          _loadNotificationState();
                         },
                       ),
                       Divider(height: 1, color: dividerColor),

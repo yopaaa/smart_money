@@ -6,9 +6,15 @@ import 'providers/transaction_provider.dart';
 import 'screens/home/main_navigation_screen.dart';
 import 'screens/splash/splash_screen.dart';
 import 'screens/welcome/welcome_screen.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await NotificationService.instance.init();
+  } catch (e) {
+    debugPrint('Notification init error: $e');
+  }
   runApp(
     MultiProvider(
       providers: [
