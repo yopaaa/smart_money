@@ -4,6 +4,7 @@ import '../../providers/theme_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../home/gallery_screen.dart';
 import 'app_info_screen.dart';
+import 'auto_lock_settings_screen.dart';
 import 'backup_restore_screen.dart';
 import 'category_management_screen.dart';
 import 'currency_setting_screen.dart';
@@ -11,6 +12,7 @@ import 'deleted_history_screen.dart';
 import 'file_export_screen.dart';
 import 'notification_settings_screen.dart';
 import 'report_screen.dart';
+import '../../providers/security_provider.dart';
 import '../../services/notification_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -47,6 +49,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
     final txProvider = context.watch<TransactionProvider>();
+    final security =
+        Provider.of<SecurityProvider?>(context) ?? SecurityProvider.instance;
     final theme = Theme.of(context);
     final isDark = themeProvider.isDarkMode;
     final currentCurrency = txProvider.currency;
@@ -146,12 +150,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Divider(height: 1, color: dividerColor),
                       _buildNavigationItem(
                         title: 'Auto Lock',
-                        subtitle: 'Lock app after inactivity',
+                        subtitle: security.isLockEnabled && security.isPinSet
+                            ? 'PIN Aktif (Sesi 4 Jam)'
+                            : 'Kunci aplikasi dengan PIN',
                         titleColor: itemTitleColor,
                         subtitleColor: subtitleColor,
                         onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Auto Lock configured to immediate')),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AutoLockSettingsScreen(),
+                            ),
                           );
                         },
                       ),
