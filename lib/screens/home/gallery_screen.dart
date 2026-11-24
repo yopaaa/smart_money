@@ -78,51 +78,68 @@ class _GalleryScreenState extends State<GalleryScreen> {
     if (_isLoading) {
       content = const Center(child: CircularProgressIndicator());
     } else if (_images.isEmpty) {
-      content = Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 48.0, horizontal: 32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.photo_library_outlined,
-                size: 60,
-                color: isDark ? Colors.white30 : Colors.grey.shade400,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Tidak ada foto struk transaksi',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: isDark ? Colors.white60 : Colors.grey.shade600,
+      content = RefreshIndicator(
+        onRefresh: _loadImages,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.5,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 48.0,
+                    horizontal: 32.0,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.photo_library_outlined,
+                        size: 60,
+                        color: isDark ? Colors.white30 : Colors.grey.shade400,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Tidak ada foto struk transaksi',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: isDark ? Colors.white60 : Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Foto struk yang ditambahkan pada transaksi akan muncul di sini',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: isDark ? Colors.white38 : Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                'Foto struk yang ditambahkan pada transaksi akan muncul di sini',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: isDark ? Colors.white38 : Colors.grey.shade500,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     } else {
       final groupedList = AppDateUtils.groupTransactionsByDate(_images);
       final horizontalPadding = widget.isStandalone ? 16.0 : 0.0;
 
-      content = ListView.builder(
-        padding: EdgeInsets.fromLTRB(
-          horizontalPadding,
-          4.0,
-          horizontalPadding,
-          100.0,
-        ),
-        itemCount: groupedList.length,
+      content = RefreshIndicator(
+        onRefresh: _loadImages,
+        child: ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            4.0,
+            horizontalPadding,
+            100.0,
+          ),
+          itemCount: groupedList.length,
         itemBuilder: (context, groupIndex) {
           final group = groupedList[groupIndex];
           return Column(
@@ -156,6 +173,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
             ],
           );
         },
+        ),
       );
     }
 

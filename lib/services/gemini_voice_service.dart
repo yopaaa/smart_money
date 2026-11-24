@@ -181,10 +181,10 @@ class ParsedVoiceTransaction {
         rawDesc.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '').trim();
 
     if (rawDesc.isEmpty || cleanDescLower == cleanTitleLower) {
-      rawDesc = '🎙️ Transaksi Suara: $rawTitle';
+      rawDesc = '$rawTitle';
     } else if (!rawDesc.startsWith('🎙️') &&
         !rawDesc.toLowerCase().contains('suara')) {
-      rawDesc = '🎙️ Transaksi Suara: $rawDesc';
+      rawDesc = '$rawDesc';
     }
 
     return ParsedVoiceTransaction(
@@ -230,6 +230,7 @@ class GeminiVoiceService {
   static const String fallbackModel = 'gemini-1.5-flash';
 
   String? _cachedApiKey;
+  String? lastTranscript;
 
   Future<String?> getApiKey() async {
     if (_cachedApiKey != null && _cachedApiKey!.isNotEmpty) {
@@ -520,6 +521,13 @@ class GeminiVoiceService {
       );
     }
 
+    final rawTranscript = parsedJson['transcript']?.toString().trim();
+    if (rawTranscript != null && rawTranscript.isNotEmpty) {
+      lastTranscript = rawTranscript;
+    } else {
+      lastTranscript = null;
+    }
+
     return txListJson.map((item) {
       final itemMap = Map<String, dynamic>.from(item as Map);
       return ParsedVoiceTransaction.fromJson(
@@ -602,11 +610,12 @@ INSTRUCTIONS:
 7. Rules for "title" vs "description":
    - "title": Short, concise, professional title (2-4 words, e.g. "Beli Bensin", "Makan Siang", "Top Up GoPay", "Gaji Bulanan").
    - "description": MUST NOT merely duplicate or echo the title! Make it informative and serve as a clear voice marker:
-     * Format as: "🎙️ Transaksi Suara: [detail spesifik ucapan atau konteks transaksi]"
-     * Include specific context mentioned in speech (e.g. specific item or food variant, merchant/store name, purpose, recipient, or payment method notes: e.g. "🎙️ Transaksi Suara: Kopi susu gula aren di Kopi Kenangan via QRIS BCA", "🎙️ Transaksi Suara: Pertalite untuk motor di SPBU").
+     * Format as: "[detail spesifik ucapan atau konteks transaksi]"
+     * Include specific context mentioned in speech (e.g. specific item or food variant, merchant/store name, purpose, recipient, or payment method notes: e.g. "Kopi susu gula aren di Kopi Kenangan via QRIS BCA", "Pertalite untuk motor di SPBU").
      * Never output the same text as "title".
 8. Output ONLY a valid JSON object matching this schema:
 {
+  "transcript": "string (the user's spoken words in Indonesian transcribed accurately)",
   "transactions": [
     {
       "title": "string",

@@ -276,6 +276,7 @@ class _VoiceTransactionDialogState extends State<VoiceTransactionDialog>
       VoiceTransactionReviewSheet.show(
         context: context,
         transactions: parsedTransactions,
+        transcript: GeminiVoiceService.instance.lastTranscript,
       );
     } catch (e) {
       if (mounted) {

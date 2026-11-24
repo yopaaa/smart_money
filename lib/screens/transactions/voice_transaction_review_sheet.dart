@@ -6,21 +6,25 @@ import '../../constants/app_icons.dart';
 import '../../models/account_model.dart';
 import '../../models/category_model.dart';
 import '../../providers/transaction_provider.dart';
+import '../../services/chat_history_service.dart';
 import '../../services/gemini_voice_service.dart';
 import '../../utils/currency_formatter.dart';
 
 class VoiceTransactionReviewSheet extends StatefulWidget {
   final List<ParsedVoiceTransaction> initialTransactions;
+  final String? transcript;
 
   const VoiceTransactionReviewSheet({
     super.key,
     required this.initialTransactions,
+    this.transcript,
   });
 
   /// Helper static method to show the review modal bottom sheet.
   static Future<bool?> show({
     required BuildContext context,
     required List<ParsedVoiceTransaction> transactions,
+    String? transcript,
   }) {
     return showModalBottomSheet<bool>(
       context: context,
@@ -28,6 +32,7 @@ class VoiceTransactionReviewSheet extends StatefulWidget {
       backgroundColor: Colors.transparent,
       builder: (_) => VoiceTransactionReviewSheet(
         initialTransactions: transactions,
+        transcript: transcript,
       ),
     );
   }
@@ -85,6 +90,28 @@ class _VoiceTransactionReviewSheetState
       final txModels = selectedItems.map((e) => e.toTransactionModel()).toList();
 
       await txProvider.addTransactions(txModels);
+
+      // Save transcript & result to Chat History
+      try {
+        String transcript;
+        if (widget.transcript != null && widget.transcript!.trim().isNotEmpty) {
+          transcript = widget.transcript!.trim();
+        } else {
+          final transcriptParts = selectedItems.map((e) {
+            final desc =
+                e.description.replaceAll('', '').trim();
+            return desc.isNotEmpty ? desc : e.title;
+          }).toList();
+          transcript = transcriptParts.join(', ');
+        }
+
+        await ChatHistoryService.instance.addVoiceTransactionChat(
+          transcript: transcript,
+          savedTransactions: txModels,
+        );
+      } catch (err) {
+        debugPrint('Failed to save to chat history: $err');
+      }
 
       if (mounted) {
         Navigator.pop(context, true);

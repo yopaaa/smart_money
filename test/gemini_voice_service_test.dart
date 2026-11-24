@@ -45,7 +45,7 @@ void main() {
       expect(parsed.categoryId, 'cat_fuel');
       expect(parsed.categoryName, 'Bensin & Transport');
       // Description must be formatted as an informative voice marker
-      expect(parsed.description, '🎙️ Transaksi Suara: Pertalite 30 ribu pakai uang tunai');
+      expect(parsed.description, 'Pertalite 30 ribu pakai uang tunai');
       expect(parsed.dateTime.year, 2026);
       expect(parsed.dateTime.month, 11);
       expect(parsed.dateTime.day, 24);
@@ -76,7 +76,7 @@ void main() {
       );
 
       // Description should be transformed into an informative voice marker
-      expect(parsed.description, '🎙️ Transaksi Suara: Makan Bakso');
+      expect(parsed.description, 'Makan Bakso');
     });
 
     test('Parses transfer transaction with source and destination accounts', () {
@@ -90,7 +90,7 @@ void main() {
         'target_account_id': 'acc_gopay',
         'target_account_name': 'GoPay',
         'date_time': '2026-11-24T12:00:00',
-        'description': '🎙️ Transaksi Suara: Top up GoPay dari rekening BCA',
+        'description': 'Top up GoPay dari rekening BCA',
       };
 
       final parsed = ParsedVoiceTransaction.fromJson(
@@ -105,7 +105,7 @@ void main() {
       expect(parsed.accountId, 'acc_bca');
       expect(parsed.targetAccountId, 'acc_gopay');
       expect(parsed.categoryId, isNull);
-      expect(parsed.description, '🎙️ Transaksi Suara: Top up GoPay dari rekening BCA');
+      expect(parsed.description, 'Top up GoPay dari rekening BCA');
 
       final txModel = parsed.toTransactionModel();
       expect(txModel.type, 'transfer');
@@ -137,7 +137,7 @@ void main() {
       expect(parsed.accountId, accounts.first.id);
       // Category should match first expense category
       expect(parsed.categoryId, 'cat_food');
-      expect(parsed.description, '🎙️ Transaksi Suara: Beli snack');
+      expect(parsed.description, 'Beli snack');
     });
   });
 }

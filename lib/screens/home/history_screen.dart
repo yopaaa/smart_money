@@ -151,67 +151,61 @@ class _HistoryScreenState extends State<HistoryScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await provider.loadData();
-          await _fetchTransactions();
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Period Navigator with interactive mode badge & selector
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4.0),
-                child: PeriodNavigator(
-                  selectedDate: _selectedDate,
-                  viewMode: _viewMode,
-                  onDateChange: (date) {
-                    setState(() => _selectedDate = date);
-                    _fetchTransactions();
-                  },
-                  onModeChange: (mode) {
-                    setState(() => _viewMode = mode);
-                    _fetchTransactions();
-                  },
-                ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Period Navigator with interactive mode badge & selector
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4.0),
+              child: PeriodNavigator(
+                selectedDate: _selectedDate,
+                viewMode: _viewMode,
+                onDateChange: (date) {
+                  setState(() => _selectedDate = date);
+                  _fetchTransactions();
+                },
+                onModeChange: (mode) {
+                  setState(() => _viewMode = mode);
+                  _fetchTransactions();
+                },
               ),
+            ),
 
-              // Content with smooth sliding PageView
-              Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  onPageChanged: (index) {
-                    setState(() => _currentTab = index);
-                  },
-                  children: [
-                    // Tab 0: History List View
-                    _buildHistoryListView(
-                      totalIncome: totalIncome,
-                      totalExpense: totalExpense,
-                      netTotal: netTotal,
-                      currency: currency,
-                      groupedList: groupedList,
-                      theme: theme,
-                    ),
+            // Content with smooth sliding PageView
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                onPageChanged: (index) {
+                  setState(() => _currentTab = index);
+                },
+                children: [
+                  // Tab 0: History List View
+                  _buildHistoryListView(
+                    totalIncome: totalIncome,
+                    totalExpense: totalExpense,
+                    netTotal: netTotal,
+                    currency: currency,
+                    groupedList: groupedList,
+                    theme: theme,
+                  ),
 
-                    // Tab 1: Gallery View
-                    GalleryScreen(
-                      startDate: AppDateUtils.getStartOfPeriod(
-                        _selectedDate,
-                        _viewMode,
-                      ).millisecondsSinceEpoch,
-                      endDate: AppDateUtils.getEndOfPeriod(
-                        _selectedDate,
-                        _viewMode,
-                      ).millisecondsSinceEpoch,
-                    ),
-                  ],
-                ),
+                  // Tab 1: Gallery View
+                  GalleryScreen(
+                    startDate: AppDateUtils.getStartOfPeriod(
+                      _selectedDate,
+                      _viewMode,
+                    ).millisecondsSinceEpoch,
+                    endDate: AppDateUtils.getEndOfPeriod(
+                      _selectedDate,
+                      _viewMode,
+                    ).millisecondsSinceEpoch,
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -233,9 +227,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final titleColor = isDark ? Colors.white : const Color(0xFF11181C);
     final descColor = isDark ? Colors.white60 : const Color(0xFF777777);
 
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 100),
-      children: [
+    return RefreshIndicator(
+      onRefresh: () async {
+        await context.read<TransactionProvider>().loadData();
+        await _fetchTransactions();
+      },
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 100),
+        children: [
         // Overview Box
         Padding(
           padding: const EdgeInsets.only(top: 4.0, bottom: 12.0),
@@ -343,6 +343,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             );
           }),
       ],
+      ),
     );
   }
 }
