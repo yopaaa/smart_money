@@ -190,6 +190,13 @@ class TransactionProvider extends ChangeNotifier {
     await loadData();
   }
 
+  Future<void> addTransactions(List<TransactionModel> txList) async {
+    for (final tx in txList) {
+      await _db.addTransaction(tx);
+    }
+    await loadData();
+  }
+
   Future<void> editTransaction(String id, TransactionModel tx) async {
     await _db.editTransaction(id, tx);
     await loadData();

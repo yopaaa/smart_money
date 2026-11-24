@@ -10,9 +10,11 @@ import 'category_management_screen.dart';
 import 'currency_setting_screen.dart';
 import 'deleted_history_screen.dart';
 import 'file_export_screen.dart';
+import 'gemini_api_key_dialog.dart';
 import 'notification_settings_screen.dart';
 import 'report_screen.dart';
 import '../../providers/security_provider.dart';
+import '../../services/gemini_voice_service.dart';
 import '../../services/notification_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -26,11 +28,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _biometricEnabled = false;
   bool _notificationsEnabled = false;
   bool _autoBackupEnabled = true;
+  bool _hasGeminiApiKey = false;
 
   @override
   void initState() {
     super.initState();
     _loadNotificationState();
+    _checkGeminiApiKey();
+  }
+
+  Future<void> _checkGeminiApiKey() async {
+    try {
+      final hasKey = await GeminiVoiceService.instance.hasApiKey();
+      if (mounted) {
+        setState(() => _hasGeminiApiKey = hasKey);
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadNotificationState() async {
@@ -185,6 +198,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _buildCard(
                     cardBg: cardBg,
                     children: [
+                      _buildNavigationItem(
+                        title: 'Gemini AI (Transaksi Suara)',
+                        subtitle: _hasGeminiApiKey
+                            ? 'API Key terpasang • Transaksi suara aktif'
+                            : 'Atur Google Gemini API Key',
+                        titleColor: itemTitleColor,
+                        subtitleColor: subtitleColor,
+                        onTap: () async {
+                          await GeminiApiKeyDialog.show(context);
+                          _checkGeminiApiKey();
+                        },
+                      ),
+                      Divider(height: 1, color: dividerColor),
                       _buildNavigationItem(
                         title: 'Notifications',
                         subtitle: _notificationsEnabled

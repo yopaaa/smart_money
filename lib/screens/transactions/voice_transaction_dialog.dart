@@ -1,10 +1,18 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ionicons/ionicons.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:record/record.dart';
 import '../../constants/app_colors.dart';
+import '../../providers/transaction_provider.dart';
+import '../../services/gemini_voice_service.dart';
+import '../settings/gemini_api_key_dialog.dart';
+import 'voice_transaction_review_sheet.dart';
 
 /// Modal dialog with wave listening animation for recording transactions by voice.
 class VoiceTransactionDialog extends StatefulWidget {
@@ -64,8 +72,18 @@ class _VoiceTransactionDialogState extends State<VoiceTransactionDialog>
   late final AnimationController _waveController;
   late final AnimationController _barsController;
   late final AnimationController _pulseController;
+  late final AnimationController _aiSpinController;
+
+  late final AudioRecorder _audioRecorder;
+  bool _isRecording = false;
+  bool _isProcessing = false;
+  String? _recordedFilePath;
+  String? _errorMessage;
+  bool _isApiKeyMissing = false;
 
   Timer? _hintTimer;
+  Timer? _amplitudeTimer;
+  double _currentAmplitudeLevel = 0.5;
   int _hintIndex = 0;
 
   final List<String> _hintPrompts = [
@@ -79,6 +97,7 @@ class _VoiceTransactionDialogState extends State<VoiceTransactionDialog>
   @override
   void initState() {
     super.initState();
+    _audioRecorder = AudioRecorder();
 
     _waveController = AnimationController(
       vsync: this,
@@ -95,6 +114,11 @@ class _VoiceTransactionDialogState extends State<VoiceTransactionDialog>
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
 
+    _aiSpinController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+
     _hintTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (mounted) {
         setState(() {
@@ -102,52 +126,184 @@ class _VoiceTransactionDialogState extends State<VoiceTransactionDialog>
         });
       }
     });
+
+    _startRecording();
+  }
+
+  Future<void> _startRecording() async {
+    try {
+      final hasPermission = await _audioRecorder.hasPermission();
+      if (!hasPermission) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Izin mikrofon tidak diberikan.';
+          });
+        }
+        return;
+      }
+
+      final tempDir = await getTemporaryDirectory();
+      final filePath =
+          '${tempDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+      const config = RecordConfig(
+        encoder: AudioEncoder.aacLc,
+        bitRate: 64000,
+        sampleRate: 24000,
+      );
+
+      await _audioRecorder.start(config, path: filePath);
+      _recordedFilePath = filePath;
+      if (mounted) {
+        setState(() {
+          _isRecording = true;
+          _errorMessage = null;
+        });
+      }
+
+      // Periodically check amplitude to animate soundwaves dynamically
+      _amplitudeTimer =
+          Timer.periodic(const Duration(milliseconds: 120), (_) async {
+        try {
+          if (_isRecording) {
+            final amp = await _audioRecorder.getAmplitude();
+            if (mounted && amp.current > -80.0) {
+              // Normalize -60dB to 0dB into 0.1 .. 1.0
+              final normalized = ((amp.current + 60) / 60).clamp(0.15, 1.0);
+              setState(() => _currentAmplitudeLevel = normalized);
+            }
+          }
+        } catch (_) {}
+      });
+    } catch (e) {
+      debugPrint('Voice recording start error: $e');
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    _amplitudeTimer?.cancel();
+    if (_isRecording) {
+      try {
+        final path = await _audioRecorder.stop();
+        if (path != null && path.isNotEmpty) {
+          _recordedFilePath = path;
+        }
+      } catch (e) {
+        debugPrint('Voice recording stop error: $e');
+      } finally {
+        if (mounted) {
+          setState(() => _isRecording = false);
+        }
+      }
+    }
   }
 
   @override
   void dispose() {
+    _amplitudeTimer?.cancel();
+    _hintTimer?.cancel();
     _waveController.dispose();
     _barsController.dispose();
     _pulseController.dispose();
-    _hintTimer?.cancel();
+    _aiSpinController.dispose();
+    _audioRecorder.dispose();
     super.dispose();
   }
 
-  void _handleSubmit() {
+  Future<void> _handleSubmit() async {
     HapticFeedback.mediumImpact();
-    final sampleTranscript = _hintPrompts[_hintIndex];
+
+    // If caller provided custom onSubmit (e.g. widget test), call it directly
     if (widget.onSubmit != null) {
+      final sampleTranscript = _hintPrompts[_hintIndex];
       widget.onSubmit!(sampleTranscript);
-    } else {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Ionicons.mic, color: Colors.white, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Suara diterima: "$sampleTranscript" (Siap diproses Gemini API)',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: AppColors.primary,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
+      return;
+    }
+
+    // Stop recording first
+    await _stopRecording();
+
+    // Check Gemini API key
+    final hasKey = await GeminiVoiceService.instance.hasApiKey();
+    if (!hasKey) {
+      if (mounted) {
+        setState(() {
+          _isApiKeyMissing = true;
+          _errorMessage =
+              'API Key Gemini belum diatur. Silakan atur API Key terlebih dahulu.';
+        });
+      }
+      return;
+    }
+
+    final filePath = _recordedFilePath;
+    final file = filePath != null ? File(filePath) : null;
+    if (file == null || !file.existsSync() || file.lengthSync() == 0) {
+      // Fallback: If no audio file was recorded, notify user
+      if (mounted) {
+        setState(() {
+          _errorMessage =
+              'Tidak ada rekaman audio terdeteksi. Silakan coba rekam lagi.';
+        });
+      }
+      return;
+    }
+
+    setState(() {
+      _isProcessing = true;
+      _errorMessage = null;
+      _isApiKeyMissing = false;
+    });
+
+    if (!mounted) return;
+
+    try {
+      final txProvider = context.read<TransactionProvider>();
+      final parsedTransactions =
+          await GeminiVoiceService.instance.parseAudioToTransactions(
+        audioFile: file,
+        accounts: txProvider.accounts,
+        categories: txProvider.categories,
+        currency: txProvider.currency,
       );
+
+      if (!mounted) return;
+
+      // Close this voice dialog
+      Navigator.of(context).pop();
+
+      // Open the Review Bottom Sheet with all parsed transactions
+      VoiceTransactionReviewSheet.show(
+        context: context,
+        transactions: parsedTransactions,
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          _errorMessage = e.toString();
+        });
+      }
     }
   }
 
   void _handleCancel() {
+    _stopRecording();
     if (widget.onCancel != null) {
       widget.onCancel!();
     } else {
       Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _openApiKeySetting() async {
+    final saved = await GeminiApiKeyDialog.show(context);
+    if (saved == true && mounted) {
+      setState(() {
+        _isApiKeyMissing = false;
+        _errorMessage = null;
+      });
+      _startRecording();
     }
   }
 
@@ -164,9 +320,9 @@ class _VoiceTransactionDialogState extends State<VoiceTransactionDialog>
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Title & Subtitle
-                const Text(
-                  'Mendengarkan...',
-                  style: TextStyle(
+                Text(
+                  _isProcessing ? 'Menganalisis Suara...' : 'Mendengarkan...',
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -175,7 +331,9 @@ class _VoiceTransactionDialogState extends State<VoiceTransactionDialog>
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Ucapkan transaksi Anda secara jelas',
+                  _isProcessing
+                      ? 'Gemini AI sedang mengekstrak transaksi Anda'
+                      : 'Ucapkan transaksi Anda secara jelas',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 13,
@@ -184,26 +342,48 @@ class _VoiceTransactionDialogState extends State<VoiceTransactionDialog>
                 ),
                 const SizedBox(height: 28),
 
-                // Center Wave Animation
+                // Center Wave Animation / AI Processing Orb
                 SizedBox(
                   height: 150,
                   width: 150,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      // Concentric Ripple Waves
-                      AnimatedBuilder(
-                        animation: _waveController,
-                        builder: (context, _) {
-                          return CustomPaint(
-                            size: const Size(150, 150),
-                            painter: _RippleWavePainter(
-                              progress: _waveController.value,
-                              waveColor: AppColors.primary,
+                      // Concentric Ripple Waves (while recording)
+                      if (!_isProcessing)
+                        AnimatedBuilder(
+                          animation: _waveController,
+                          builder: (context, _) {
+                            return CustomPaint(
+                              size: const Size(150, 150),
+                              painter: _RippleWavePainter(
+                                progress: _waveController.value,
+                                waveColor: AppColors.primary,
+                              ),
+                            );
+                          },
+                        ),
+
+                      // Rotating gradient ring when processing
+                      if (_isProcessing)
+                        RotationTransition(
+                          turns: _aiSpinController,
+                          child: Container(
+                            width: 110,
+                            height: 110,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: SweepGradient(
+                                colors: [
+                                  AppColors.primary.withOpacity(0.0),
+                                  AppColors.primary,
+                                  const Color(0xFF38BDF8),
+                                  AppColors.primary.withOpacity(0.0),
+                                ],
+                              ),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        ),
 
                       // Central Glowing Mic Orb with Pulse
                       ScaleTransition(
@@ -234,9 +414,11 @@ class _VoiceTransactionDialogState extends State<VoiceTransactionDialog>
                               ),
                             ],
                           ),
-                          child: const Center(
+                          child: Center(
                             child: Icon(
-                              Ionicons.mic,
+                              _isProcessing
+                                  ? Icons.auto_awesome_rounded
+                                  : Ionicons.mic,
                               size: 32,
                               color: Colors.white,
                             ),
@@ -262,7 +444,9 @@ class _VoiceTransactionDialogState extends State<VoiceTransactionDialog>
                           final value = math.sin(
                             (_barsController.value * 2 * math.pi) + phase,
                           );
-                          final normalized = ((value + 1) / 2).clamp(0.15, 1.0);
+                          final normalized =
+                              ((value + 1) / 2).clamp(0.15, 1.0) *
+                                  (_isProcessing ? 0.3 : _currentAmplitudeLevel);
                           final height = 6.0 + (normalized * 22.0);
 
                           return Container(
@@ -284,52 +468,119 @@ class _VoiceTransactionDialogState extends State<VoiceTransactionDialog>
 
                 const SizedBox(height: 20),
 
-                // Hint Prompt Box
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.15),
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Contoh yang bisa diucapkan:',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: Colors.white.withOpacity(0.65),
-                        ),
+                // Error Message Box (if any)
+                if (_errorMessage != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.expense.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: AppColors.expense.withOpacity(0.4),
                       ),
-                      const SizedBox(height: 4),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 350),
-                        child: Text(
-                          '"${_hintPrompts[_hintIndex]}"',
-                          key: ValueKey<int>(_hintIndex),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          _errorMessage!,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
                             color: Colors.white,
-                            fontStyle: FontStyle.italic,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ),
-                    ],
+                        if (_isApiKeyMissing) ...[
+                          const SizedBox(height: 8),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: AppColors.primary,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            onPressed: _openApiKeySetting,
+                            icon: const Icon(Icons.key_rounded, size: 16),
+                            label: const Text(
+                              'Atur API Key',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ] else ...[
+                          const SizedBox(height: 6),
+                          TextButton(
+                            onPressed: () {
+                              setState(() => _errorMessage = null);
+                              _startRecording();
+                            },
+                            child: const Text(
+                              'Coba Rekam Lagi',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 16),
+                ] else ...[
+                  // Hint Prompt Box
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.15),
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Contoh yang bisa diucapkan:',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: Colors.white.withOpacity(0.65),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 350),
+                          child: Text(
+                            '"${_hintPrompts[_hintIndex]}"',
+                            key: ValueKey<int>(_hintIndex),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
 
-                const SizedBox(height: 28),
-
-                // Submit Button ("button submit untuk mengakhirinya")
+                // Submit Button
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -343,11 +594,20 @@ class _VoiceTransactionDialogState extends State<VoiceTransactionDialog>
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    onPressed: _handleSubmit,
-                    icon: const Icon(Ionicons.checkmarkCircle, size: 20),
-                    label: const Text(
-                      'Selesai / Submit',
-                      style: TextStyle(
+                    onPressed: _isProcessing ? null : _handleSubmit,
+                    icon: _isProcessing
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Ionicons.checkmarkCircle, size: 20),
+                    label: Text(
+                      _isProcessing ? 'Menganalisis...' : 'Selesai / Submit',
+                      style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                       ),
@@ -358,7 +618,7 @@ class _VoiceTransactionDialogState extends State<VoiceTransactionDialog>
 
                 // Cancel Text Button
                 TextButton(
-                  onPressed: _handleCancel,
+                  onPressed: _isProcessing ? null : _handleCancel,
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.white.withOpacity(0.7),
                     visualDensity: VisualDensity.compact,
