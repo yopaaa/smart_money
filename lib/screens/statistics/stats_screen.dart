@@ -28,6 +28,8 @@ class _StatsScreenState extends State<StatsScreen> {
   List<TransactionModel> _transactions = [];
   bool _isLoading = false;
   int? _selectedCategoryIndex;
+  int _fetchRequestId = 0;
+  TransactionProvider? _provider;
 
   @override
   void initState() {
@@ -35,12 +37,37 @@ class _StatsScreenState extends State<StatsScreen> {
     _fetchStats();
   }
 
-  Future<void> _fetchStats() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     final provider = context.read<TransactionProvider>();
+    if (_provider != provider) {
+      _provider?.removeListener(_onProviderChanged);
+      _provider = provider;
+      _provider?.addListener(_onProviderChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    _provider?.removeListener(_onProviderChanged);
+    super.dispose();
+  }
+
+  void _onProviderChanged() {
+    if (!mounted) return;
+    _fetchStats(showLoading: false);
+  }
+
+  Future<void> _fetchStats({bool showLoading = true}) async {
+    final requestId = ++_fetchRequestId;
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+
+    final provider = _provider ?? context.read<TransactionProvider>();
     final start = AppDateUtils.getStartOfPeriod(
       _selectedDate,
       _viewMode,
@@ -57,7 +84,7 @@ class _StatsScreenState extends State<StatsScreen> {
         endDate: end,
       );
 
-      if (mounted) {
+      if (mounted && requestId == _fetchRequestId) {
         setState(() {
           _transactions = txs;
           _isLoading = false;
@@ -65,7 +92,7 @@ class _StatsScreenState extends State<StatsScreen> {
       }
     } catch (e) {
       debugPrint('Error fetching stats: $e');
-      if (mounted) {
+      if (mounted && requestId == _fetchRequestId) {
         setState(() {
           _isLoading = false;
         });

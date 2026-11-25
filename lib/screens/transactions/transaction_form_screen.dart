@@ -807,8 +807,6 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     final provider = context.watch<TransactionProvider>();
     final currency = provider.currency;
 
-    final wallpaperBg =
-        isDark ? const Color(0xFF0B141A) : const Color(0xFFEFEAE2);
     final bottomBarBg =
         isDark ? const Color(0xFF1F2C34) : const Color(0xFFF0F2F5);
     final inputCardBg = isDark ? const Color(0xFF2A3942) : Colors.white;
@@ -816,11 +814,8 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
         isDark ? Colors.white : const Color(0xFF111B21);
 
     return Container(
-      color: wallpaperBg,
       child: Column(
         children: [
-          // WhatsApp Sub-header Contact Bar
-          _buildChatHeaderBar(isDark),
 
           // Chat Messages List
           Expanded(
@@ -870,102 +865,6 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
             bottomBarBg: bottomBarBg,
             inputCardBg: inputCardBg,
             inputTextColor: inputTextColor,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChatHeaderBar(bool isDark) {
-    final bgColor = isDark ? const Color(0xFF1F2C34) : Colors.white;
-    final borderColor = isDark ? Colors.white10 : const Color(0xFFE2E8F0);
-    final titleColor = isDark ? Colors.white : const Color(0xFF111B21);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: bgColor,
-        border: Border(bottom: BorderSide(color: borderColor)),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 19,
-            backgroundColor: AppColors.primary.withOpacity(0.15),
-            child: const Icon(
-              Icons.auto_awesome_rounded,
-              color: AppColors.primary,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Smart Money AI',
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.bold,
-                    color: titleColor,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF25D366),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    const Text(
-                      'online',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: Color(0xFF25D366),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          PopupMenuButton<String>(
-            icon: Icon(
-              Icons.more_vert,
-              size: 20,
-              color: isDark ? Colors.white70 : Colors.black54,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            onSelected: (val) {
-              if (val == 'clear') {
-                _confirmClearChat();
-              }
-            },
-            itemBuilder: (ctx) => [
-              const PopupMenuItem(
-                value: 'clear',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_outline, color: AppColors.expense, size: 18),
-                    SizedBox(width: 8),
-                    Text(
-                      'Hapus Riwayat Chat',
-                      style: TextStyle(color: AppColors.expense, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ),
         ],
       ),

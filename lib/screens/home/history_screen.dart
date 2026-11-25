@@ -29,6 +29,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   late final PageController _pageController;
   List<TransactionModel> _currentTransactions = [];
   bool _isLoading = false;
+  int _fetchRequestId = 0;
+  TransactionProvider? _provider;
 
   @override
   void initState() {
@@ -38,18 +40,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = context.read<TransactionProvider>();
+    if (_provider != provider) {
+      _provider?.removeListener(_onProviderChanged);
+      _provider = provider;
+      _provider?.addListener(_onProviderChanged);
+    }
+  }
+
+  @override
   void dispose() {
+    _provider?.removeListener(_onProviderChanged);
     _pageController.dispose();
     super.dispose();
   }
 
-  Future<void> _fetchTransactions() async {
-    setState(() {
-      _isLoading = true;
-    });
+  void _onProviderChanged() {
+    if (!mounted) return;
+    _fetchTransactions(showLoading: false);
+  }
+
+  Future<void> _fetchTransactions({bool showLoading = true}) async {
+    final requestId = ++_fetchRequestId;
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
     try {
-      final provider = context.read<TransactionProvider>();
+      final provider = _provider ?? context.read<TransactionProvider>();
       final start = AppDateUtils.getStartOfPeriod(
         _selectedDate,
         _viewMode,
@@ -64,14 +86,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
         endDate: end,
       );
 
-      if (mounted) {
+      if (mounted && requestId == _fetchRequestId) {
         setState(() {
           _currentTransactions = txs;
           _isLoading = false;
         });
       }
     } catch (_) {
-      if (mounted) {
+      if (mounted && requestId == _fetchRequestId) {
         setState(() {
           _isLoading = false;
         });

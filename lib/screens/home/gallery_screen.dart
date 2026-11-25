@@ -28,10 +28,34 @@ class GalleryScreen extends StatefulWidget {
 class _GalleryScreenState extends State<GalleryScreen> {
   List<TransactionModel> _images = [];
   bool _isLoading = true;
+  int _loadRequestId = 0;
+  TransactionProvider? _provider;
 
   @override
   void initState() {
     super.initState();
+    _loadImages();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = context.read<TransactionProvider>();
+    if (_provider != provider) {
+      _provider?.removeListener(_onProviderChanged);
+      _provider = provider;
+      _provider?.addListener(_onProviderChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    _provider?.removeListener(_onProviderChanged);
+    super.dispose();
+  }
+
+  void _onProviderChanged() {
+    if (!mounted) return;
     _loadImages();
   }
 
@@ -45,21 +69,22 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   Future<void> _loadImages() async {
-    final provider = context.read<TransactionProvider>();
+    final requestId = ++_loadRequestId;
+    final provider = _provider ?? context.read<TransactionProvider>();
     try {
       final txs = await provider.filterTransactions(
         startDate: widget.startDate,
         endDate: widget.endDate,
         hasImage: true,
       );
-      if (mounted) {
+      if (mounted && requestId == _loadRequestId) {
         setState(() {
           _images = txs;
           _isLoading = false;
         });
       }
     } catch (_) {
-      if (mounted) {
+      if (mounted && requestId == _loadRequestId) {
         setState(() {
           _isLoading = false;
         });

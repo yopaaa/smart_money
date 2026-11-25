@@ -68,6 +68,31 @@ class MockChatTransactionProvider extends ChangeNotifier
   Future<void> loadData() async {}
 
   @override
+  Future<List<TransactionModel>> filterTransactions({
+    String? search,
+    String? type,
+    String? category,
+    String? accountId,
+    int? minAmount,
+    int? maxAmount,
+    int? startDate,
+    int? endDate,
+    bool? hasImage,
+    int? limit,
+    int? offset,
+  }) async {
+    return addedTransactions.where((tx) {
+      if (hasImage == true && (tx.img == null || tx.img!.isEmpty)) {
+        return false;
+      }
+      final ts = int.tryParse(tx.createdAt) ?? 0;
+      if (startDate != null && ts < startDate) return false;
+      if (endDate != null && ts > endDate) return false;
+      return true;
+    }).toList();
+  }
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -133,9 +158,8 @@ void main() {
       await tester.tap(chatTabFinder);
       await tester.pumpAndSettle();
 
-      // Verify WhatsApp-style header bar
+      // Verify assistant messages in chat view
       expect(find.text('Smart Money AI'), findsWidgets);
-      expect(find.text('online'), findsOneWidget);
 
       // Verify WhatsApp bottom input bar
       expect(find.text('Ketik pesan transaksi...'), findsOneWidget);
@@ -199,6 +223,45 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await tester.pumpAndSettle();
+    });
+
+    testWidgets(
+        'HistoryScreen auto-refreshes when voice transactions are added to provider',
+        (tester) async {
+      final mockProvider = MockChatTransactionProvider();
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => ThemeProvider()),
+            ChangeNotifierProvider<TransactionProvider>.value(
+              value: mockProvider,
+            ),
+          ],
+          child: const MaterialApp(home: HistoryScreen()),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(find.text('Tidak ada transaksi pada periode ini'), findsOneWidget);
+
+      // Simulate saving a voice transaction via provider.addTransactions
+      final voiceTx = TransactionModel(
+        id: 'voice_tx_1',
+        title: 'Kopi Susu Suara',
+        amount: 22000,
+        type: 'expense',
+        accountId: 'acc_bca',
+        category: 'cat_food',
+        createdAt: DateTime.now().millisecondsSinceEpoch.toString(),
+        description: 'Kopi susu gula aren via BCA',
+      );
+      await mockProvider.addTransactions([voiceTx]);
+      await tester.pumpAndSettle();
+
+      // HistoryScreen should auto-refresh and display the new transaction
+      expect(find.text('Kopi Susu Suara'), findsOneWidget);
+      expect(find.text('Tidak ada transaksi pada periode ini'), findsNothing);
     });
   });
 }
