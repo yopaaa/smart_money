@@ -14,7 +14,9 @@ import '../../widgets/slide_select.dart';
 import '../transactions/per_category_screen.dart';
 
 class StatsScreen extends StatefulWidget {
-  const StatsScreen({super.key});
+  final bool isActive;
+
+  const StatsScreen({super.key, this.isActive = true});
 
   @override
   State<StatsScreen> createState() => _StatsScreenState();
@@ -29,12 +31,23 @@ class _StatsScreenState extends State<StatsScreen> {
   bool _isLoading = false;
   int? _selectedCategoryIndex;
   int _fetchRequestId = 0;
+  int _chartAnimationSeed = 0;
   TransactionProvider? _provider;
 
   @override
   void initState() {
     super.initState();
     _fetchStats();
+  }
+
+  @override
+  void didUpdateWidget(covariant StatsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      setState(() {
+        _chartAnimationSeed++;
+      });
+    }
   }
 
   @override
@@ -247,6 +260,7 @@ class _StatsScreenState extends State<StatsScreen> {
                   CustomPieChart(
                     stats: stats,
                     selectedIndex: _selectedCategoryIndex,
+                    animationTrigger: _chartAnimationSeed,
                     onSliceTap: (index) {
                       setState(() {
                         _selectedCategoryIndex = index;

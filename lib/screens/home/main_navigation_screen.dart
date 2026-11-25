@@ -103,13 +103,6 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = const [
-    HistoryScreen(),
-    StatsScreen(),
-    AccountsScreen(),
-    SettingsScreen(),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -121,7 +114,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       extendBody: true,
       body: IndexedStack(
         index: _currentIndex,
-        children: _pages,
+        children: [
+          const HistoryScreen(),
+          StatsScreen(isActive: _currentIndex == 1),
+          const AccountsScreen(),
+          const SettingsScreen(),
+        ],
       ),
 
       floatingActionButton: SizedBox(

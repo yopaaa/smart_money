@@ -3,17 +3,75 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../models/category_model.dart';
 
-class CustomPieChart extends StatelessWidget {
+class CustomPieChart extends StatefulWidget {
   final List<CategoryStatModel> stats;
   final int? selectedIndex;
   final ValueChanged<int?>? onSliceTap;
+  final int animationTrigger;
 
   const CustomPieChart({
     super.key,
     required this.stats,
     this.selectedIndex,
     this.onSliceTap,
+    this.animationTrigger = 0,
   });
+
+  @override
+  State<CustomPieChart> createState() => _CustomPieChartState();
+}
+
+class _CustomPieChartState extends State<CustomPieChart>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _sweepAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _sweepAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
+    if (_hasData(widget.stats)) {
+      _controller.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant CustomPieChart oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final dataChanged = _statsChanged(oldWidget.stats, widget.stats);
+    final triggerChanged = widget.animationTrigger != oldWidget.animationTrigger;
+    if (_hasData(widget.stats) && (dataChanged || triggerChanged)) {
+      _controller.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  bool _hasData(List<CategoryStatModel> stats) {
+    return stats.isNotEmpty && stats.fold<int>(0, (s, e) => s + e.amount) > 0;
+  }
+
+  bool _statsChanged(List<CategoryStatModel> a, List<CategoryStatModel> b) {
+    if (a.length != b.length) return true;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i].category.id != b[i].category.id ||
+          a[i].amount != b[i].amount) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,9 +79,9 @@ class CustomPieChart extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black87;
 
-    final total = stats.fold<int>(0, (sum, item) => sum + item.amount);
+    final total = widget.stats.fold<int>(0, (sum, item) => sum + item.amount);
 
-    if (stats.isEmpty || total == 0) {
+    if (widget.stats.isEmpty || total == 0) {
       return Container(
         height: 250,
         alignment: Alignment.center,
@@ -66,14 +124,20 @@ class CustomPieChart extends StatelessWidget {
         return SizedBox(
           width: width,
           height: height,
-          child: CustomPaint(
-            size: Size(width, height),
-            painter: _PieChartPainter(
-              stats: stats,
-              total: total,
-              selectedIndex: selectedIndex,
-              textColor: textColor,
-            ),
+          child: AnimatedBuilder(
+            animation: _sweepAnimation,
+            builder: (context, _) {
+              return CustomPaint(
+                size: Size(width, height),
+                painter: _PieChartPainter(
+                  stats: widget.stats,
+                  total: total,
+                  selectedIndex: widget.selectedIndex,
+                  textColor: textColor,
+                  progress: _sweepAnimation.value,
+                ),
+              );
+            },
           ),
         );
       },
@@ -86,16 +150,21 @@ class _PieChartPainter extends CustomPainter {
   final int total;
   final int? selectedIndex;
   final Color textColor;
+  final double progress;
 
   _PieChartPainter({
     required this.stats,
     required this.total,
     required this.selectedIndex,
     required this.textColor,
+    required this.progress,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
+    final clampedProgress = progress.clamp(0.0, 1.0);
+    if (clampedProgress <= 0.0) return;
+
     final center = Offset(size.width / 2, size.height / 2);
     final radius = min(size.width, size.height) * 0.28; // ~76-80px
 
@@ -104,38 +173,69 @@ class _PieChartPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.5;
 
-    // If only 1 category, draw full circle
+    // If only 1 category, sweep circularly from 0% to 100%
     if (stats.length == 1) {
       final color = AppColors.parseHex(stats[0].category.color);
       final fillPaint = Paint()..color = color;
-      canvas.drawCircle(center, radius, fillPaint);
-      canvas.drawCircle(center, radius, strokePaint);
+      final sweepRad = 2 * pi * clampedProgress;
 
-      _drawLabel(
-        canvas: canvas,
-        center: center,
-        labelX: center.dx,
-        labelY: center.dy - radius - 24,
-        label: stats[0].categoryName,
-        percent: '100 %',
-        textColor: textColor,
-      );
+      if (sweepRad >= 2 * pi - 0.0001) {
+        canvas.drawCircle(center, radius, fillPaint);
+        canvas.drawCircle(center, radius, strokePaint);
+      } else {
+        final path = Path()
+          ..moveTo(center.dx, center.dy)
+          ..arcTo(
+            Rect.fromCircle(center: center, radius: radius),
+            -pi / 2,
+            sweepRad,
+            false,
+          )
+          ..close();
+        canvas.drawPath(path, fillPaint);
+        canvas.drawPath(path, strokePaint);
+      }
+
+      final labelOpacity = ((clampedProgress - 0.55) / 0.35).clamp(0.0, 1.0);
+      if (labelOpacity > 0) {
+        _drawLabel(
+          canvas: canvas,
+          center: center,
+          labelX: center.dx,
+          labelY: center.dy - radius - 24,
+          label: stats[0].categoryName,
+          percent: '100 %',
+          textColor: textColor,
+          opacity: labelOpacity,
+        );
+      }
       return;
     }
 
+    final double maxAngleDegrees = 360.0 * clampedProgress;
     double cumulativeAngle = 0.0;
 
     for (int i = 0; i < stats.length; i++) {
       final item = stats[i];
-      final sweepAngleDegrees = (item.amount / total) * 360.0;
+      final fullSweepDegrees = (item.amount / total) * 360.0;
       final startAngleDegrees = cumulativeAngle;
+      cumulativeAngle += fullSweepDegrees;
+
+      if (startAngleDegrees >= maxAngleDegrees) {
+        continue;
+      }
+
+      final visibleSweepDegrees =
+          min(fullSweepDegrees, maxAngleDegrees - startAngleDegrees);
+      if (visibleSweepDegrees <= 0.01) continue;
+
       final isSelected = selectedIndex == i;
 
       final startAngleRad = ((startAngleDegrees - 90.0) * pi) / 180.0;
-      final sweepAngleRad = (sweepAngleDegrees * pi) / 180.0;
+      final sweepAngleRad = (visibleSweepDegrees * pi) / 180.0;
 
       // Slice center offset if selected
-      final midAngleDegrees = startAngleDegrees + sweepAngleDegrees / 2.0;
+      final midAngleDegrees = startAngleDegrees + fullSweepDegrees / 2.0;
       final midAngleRad = ((midAngleDegrees - 90.0) * pi) / 180.0;
 
       Offset sliceCenter = center;
@@ -165,27 +265,31 @@ class _PieChartPainter extends CustomPainter {
       canvas.drawPath(path, strokePaint);
 
       // Draw Outside Label if slice angle is large enough (> 14 degrees / ~3.8%)
-      if (sweepAngleDegrees > 14) {
-        final labelRadius = actualRadius + (isSelected ? 32.0 : 26.0);
-        double labelX = sliceCenter.dx + labelRadius * cos(midAngleRad);
-        double labelY = sliceCenter.dy + labelRadius * sin(midAngleRad);
+      if (fullSweepDegrees > 14) {
+        final sliceProgress =
+            (visibleSweepDegrees / fullSweepDegrees).clamp(0.0, 1.0);
+        final labelOpacity = ((sliceProgress - 0.5) / 0.5).clamp(0.0, 1.0);
+        if (labelOpacity > 0) {
+          final labelRadius = actualRadius + (isSelected ? 32.0 : 26.0);
+          double labelX = sliceCenter.dx + labelRadius * cos(midAngleRad);
+          double labelY = sliceCenter.dy + labelRadius * sin(midAngleRad);
 
-        // Clamp labelX inside canvas bounds with padding
-        labelX = labelX.clamp(35.0, size.width - 35.0);
-        labelY = labelY.clamp(14.0, size.height - 14.0);
+          // Clamp labelX inside canvas bounds with padding
+          labelX = labelX.clamp(35.0, size.width - 35.0);
+          labelY = labelY.clamp(14.0, size.height - 14.0);
 
-        _drawLabel(
-          canvas: canvas,
-          center: center,
-          labelX: labelX,
-          labelY: labelY,
-          label: item.categoryName,
-          percent: '${item.percent.toStringAsFixed(0)} %',
-          textColor: textColor,
-        );
+          _drawLabel(
+            canvas: canvas,
+            center: center,
+            labelX: labelX,
+            labelY: labelY,
+            label: item.categoryName,
+            percent: '${item.percent.toStringAsFixed(0)} %',
+            textColor: textColor,
+            opacity: labelOpacity,
+          );
+        }
       }
-
-      cumulativeAngle += sweepAngleDegrees;
     }
   }
 
@@ -197,6 +301,7 @@ class _PieChartPainter extends CustomPainter {
     required String label,
     required String percent,
     required Color textColor,
+    double opacity = 1.0,
   }) {
     // 1. Category name text
     final namePainter = TextPainter(
@@ -205,7 +310,7 @@ class _PieChartPainter extends CustomPainter {
         style: TextStyle(
           fontSize: 11.5,
           fontWeight: FontWeight.bold,
-          color: textColor,
+          color: textColor.withOpacity(opacity),
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -220,7 +325,7 @@ class _PieChartPainter extends CustomPainter {
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w500,
-          color: textColor.withOpacity(0.85),
+          color: textColor.withOpacity(0.85 * opacity),
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -244,6 +349,7 @@ class _PieChartPainter extends CustomPainter {
     return oldDelegate.stats != stats ||
         oldDelegate.total != total ||
         oldDelegate.selectedIndex != selectedIndex ||
-        oldDelegate.textColor != textColor;
+        oldDelegate.textColor != textColor ||
+        oldDelegate.progress != progress;
   }
 }
