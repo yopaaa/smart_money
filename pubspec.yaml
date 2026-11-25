@@ -19,6 +19,7 @@ dependencies:
   ionicons: ^0.2.3
   path: ^1.9.1
   path_provider: ^2.1.6
+  pdf: ^3.13.1
   provider: ^6.1.5+1
   record: ^7.2.0
   share_plus: ^13.3.0

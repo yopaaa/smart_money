@@ -5,6 +5,7 @@ import '../../constants/app_icons.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 import '../../providers/transaction_provider.dart';
+import '../../services/monthly_report_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_utils.dart';
 import '../../widgets/custom_pie_chart.dart';
@@ -29,6 +30,7 @@ class _StatsScreenState extends State<StatsScreen> {
 
   List<TransactionModel> _transactions = [];
   bool _isLoading = false;
+  bool _isExportingPdf = false;
   int? _selectedCategoryIndex;
   int _fetchRequestId = 0;
   int _chartAnimationSeed = 0;
@@ -109,6 +111,51 @@ class _StatsScreenState extends State<StatsScreen> {
         setState(() {
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  Future<void> _handleDownloadPdfReport() async {
+    if (_isExportingPdf) return;
+    setState(() => _isExportingPdf = true);
+
+    try {
+      final provider = _provider ?? context.read<TransactionProvider>();
+      await provider.loadData();
+      final allTxs = await provider.filterTransactions();
+
+      final file = await MonthlyReportService.instance.exportAndShareReport(
+        accounts: provider.accounts,
+        categories: provider.categories,
+        allTransactions: allTxs,
+        currency: provider.currency,
+        selectedDate: _selectedDate,
+        viewMode: _viewMode,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Laporan PDF siap: ${file.uri.pathSegments.last}',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal membuat laporan PDF: $e'),
+            backgroundColor: AppColors.expense,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isExportingPdf = false);
       }
     }
   }
@@ -208,23 +255,58 @@ class _StatsScreenState extends State<StatsScreen> {
                       ),
                     ),
 
-                    // Right: Calendar Action Icon
-                    IconButton(
-                      icon: Icon(
-                        Icons.calendar_month_outlined,
-                        size: 24,
-                        color: textColor,
-                      ),
-                      onPressed: () async {
-                        final selected = await showPeriodPickerDialog(
-                          context,
-                          _viewMode,
-                        );
-                        if (selected != null && selected != _viewMode) {
-                          setState(() => _viewMode = selected);
-                          _fetchStats();
-                        }
-                      },
+                    // Right: Calendar & PDF Download Action Icons
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            Icons.calendar_month_outlined,
+                            size: 24,
+                            color: textColor,
+                          ),
+                          tooltip: 'Pilih Periode',
+                          constraints: const BoxConstraints(
+                            minWidth: 38,
+                            minHeight: 38,
+                          ),
+                          padding: const EdgeInsets.all(6),
+                          onPressed: () async {
+                            final selected = await showPeriodPickerDialog(
+                              context,
+                              _viewMode,
+                            );
+                            if (selected != null && selected != _viewMode) {
+                              setState(() => _viewMode = selected);
+                              _fetchStats();
+                            }
+                          },
+                        ),
+                        IconButton(
+                          icon: _isExportingPdf
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: textColor,
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.picture_as_pdf_outlined,
+                                  size: 23,
+                                  color: textColor,
+                                ),
+                          tooltip: 'Unduh Laporan PDF',
+                          constraints: const BoxConstraints(
+                            minWidth: 38,
+                            minHeight: 38,
+                          ),
+                          padding: const EdgeInsets.all(6),
+                          onPressed:
+                              _isExportingPdf ? null : _handleDownloadPdfReport,
+                        ),
+                      ],
                     ),
                   ],
                 ),
