@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ionicons/ionicons.dart';
 import 'package:provider/provider.dart';
+import 'package:smart_money/models/account_model.dart';
+import 'package:smart_money/models/category_model.dart';
 import 'package:smart_money/models/transaction_model.dart';
 import 'package:smart_money/providers/theme_provider.dart';
 import 'package:smart_money/providers/transaction_provider.dart';
@@ -297,4 +299,101 @@ void main() {
       expect(find.text('Edit'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'TransactionFormScreen opens compact category & account modals matching design',
+    (tester) async {
+      final mockTx = _PickerMockTransactionProvider();
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => ThemeProvider()),
+            ChangeNotifierProvider<TransactionProvider>.value(value: mockTx),
+          ],
+          child: const MaterialApp(home: TransactionFormScreen()),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Open Kategori modal
+      await tester.tap(find.text('Makanan').first);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Dialog), findsOneWidget);
+      expect(find.text('Minuman'), findsOneWidget);
+      expect(find.text('Tutup'), findsOneWidget);
+
+      await tester.tap(find.text('Minuman'));
+      await tester.pumpAndSettle();
+      expect(find.byType(Dialog), findsNothing);
+      expect(find.text('Minuman'), findsOneWidget);
+
+      // Open Akun modal: compact single-line name only (no balance subtitle)
+      await tester.tap(find.text('Cash On Hand').first);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Dialog), findsOneWidget);
+      expect(find.text('Cash On Gopay'), findsOneWidget);
+      expect(find.text('Tutup'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(Dialog),
+          matching: find.textContaining('Rp'),
+        ),
+        findsNothing,
+      );
+
+      await tester.tap(find.text('Cash On Gopay'));
+      await tester.pumpAndSettle();
+      expect(find.byType(Dialog), findsNothing);
+      expect(find.text('Cash On Gopay'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+}
+
+class _PickerMockTransactionProvider extends TransactionProvider {
+  @override
+  Future<void> loadData() async {}
+
+  @override
+  List<AccountModel> get accounts => [
+    AccountModel(
+      id: 'acc-1',
+      name: 'Cash On Hand',
+      balance: 250000,
+      type: 'cash',
+      icon: 'cash',
+      iconColor: '#4CAF50',
+    ),
+    AccountModel(
+      id: 'acc-2',
+      name: 'Cash On Gopay',
+      balance: 150000,
+      type: 'ewallet',
+      icon: 'cash',
+      iconColor: '#66BB6A',
+    ),
+  ];
+
+  @override
+  List<CategoryModel> getCategoriesByType(String type) => [
+    CategoryModel(
+      id: 'cat-1',
+      name: 'Makanan',
+      icon: 'restaurant',
+      color: '#E57373',
+      type: 'expense',
+    ),
+    CategoryModel(
+      id: 'cat-2',
+      name: 'Minuman',
+      icon: 'local_drink',
+      color: '#42A5F5',
+      type: 'expense',
+    ),
+  ];
 }

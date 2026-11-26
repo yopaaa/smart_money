@@ -20,6 +20,7 @@ import '../../services/gemini_voice_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../widgets/action_button.dart';
 import '../../widgets/animated_tab_bar.dart';
+import '../../widgets/compact_option_picker_dialog.dart';
 import 'voice_transaction_dialog.dart';
 
 class TransactionFormScreen extends StatefulWidget {
@@ -204,146 +205,56 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     }
   }
 
-  void _showCategoryDialog() {
+  Future<void> _showCategoryDialog() async {
     final provider = context.read<TransactionProvider>();
     final categories = provider.getCategoriesByType(_type);
 
-    showDialog(
+    final selected = await showCompactOptionPickerDialog<CategoryModel>(
       context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          constraints: const BoxConstraints(maxHeight: 460),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Expanded(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: categories.length,
-                  separatorBuilder: (_, _) =>
-                      Divider(height: 1, color: Colors.grey.shade200),
-                  itemBuilder: (context, index) {
-                    final cat = categories[index];
-                    final color = AppColors.parseHex(cat.color);
-
-                    return ListTile(
-                      dense: true,
-                      leading: SizedBox(
-                        width: 32,
-                        child: Icon(
-                          AppIcons.getIcon(cat.icon),
-                          color: color,
-                          size: 22,
-                        ),
-                      ),
-                      title: Text(
-                        cat.name,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      onTap: () {
-                        setState(() {
-                          _selectedCategory = cat;
-                        });
-                        Navigator.pop(ctx);
-                      },
-                    );
-                  },
-                ),
-              ),
-              const Divider(height: 1),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text(
-                  'Tutup',
-                  style: TextStyle(color: Colors.grey, fontSize: 15),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      options: categories
+          .map(
+            (cat) => CompactPickerOption<CategoryModel>(
+              value: cat,
+              label: cat.name,
+              icon: AppIcons.getIcon(cat.icon),
+              color: AppColors.parseHex(cat.color),
+            ),
+          )
+          .toList(),
     );
+
+    if (selected != null && mounted) {
+      setState(() => _selectedCategory = selected);
+    }
   }
 
-  void _showAccountDialog({required bool isTarget}) {
+  Future<void> _showAccountDialog({required bool isTarget}) async {
     final provider = context.read<TransactionProvider>();
     final accounts = provider.accounts;
 
-    showDialog(
+    final selected = await showCompactOptionPickerDialog<AccountModel>(
       context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          constraints: const BoxConstraints(maxHeight: 400),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Expanded(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: accounts.length,
-                  separatorBuilder: (_, _) =>
-                      Divider(height: 1, color: Colors.grey.shade200),
-                  itemBuilder: (context, index) {
-                    final acc = accounts[index];
-                    final color = AppColors.parseHex(acc.iconColor);
-
-                    return ListTile(
-                      leading: SizedBox(
-                        width: 32,
-                        child: Icon(
-                          AppIcons.getIcon(acc.icon),
-                          color: color,
-                          size: 22,
-                        ),
-                      ),
-                      title: Text(
-                        acc.name,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      subtitle: Text(
-                        '( ${CurrencyFormatter.format(acc.balance, provider.currency)} )',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      onTap: () {
-                        setState(() {
-                          if (isTarget) {
-                            _selectedTargetAccount = acc;
-                          } else {
-                            _selectedAccount = acc;
-                          }
-                        });
-                        Navigator.pop(ctx);
-                      },
-                    );
-                  },
-                ),
-              ),
-              const Divider(height: 1),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text(
-                  'Tutup',
-                  style: TextStyle(color: Colors.grey, fontSize: 15),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      options: accounts
+          .map(
+            (acc) => CompactPickerOption<AccountModel>(
+              value: acc,
+              label: acc.name,
+              icon: AppIcons.getIcon(acc.icon),
+              color: AppColors.parseHex(acc.iconColor),
+            ),
+          )
+          .toList(),
     );
+
+    if (selected != null && mounted) {
+      setState(() {
+        if (isTarget) {
+          _selectedTargetAccount = selected;
+        } else {
+          _selectedAccount = selected;
+        }
+      });
+    }
   }
 
   Future<void> _submit() async {

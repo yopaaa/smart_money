@@ -239,13 +239,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              Text(
-                                'App Data Folder (tersembunyi & aman)',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
-                              ),
+                            
                             ],
                           ),
                         ),
@@ -412,8 +406,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Divider(height: 1),
-                      const SizedBox(height: 12),
                       const Text(
                         'Jadwal Backup Otomatis',
                         style: TextStyle(
@@ -454,10 +446,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                           'Hanya Backup Saat Wi-Fi',
                           style: TextStyle(fontSize: 13.5),
                         ),
-                        subtitle: const Text(
-                          'Hemat kuota seluler saat sinkronisasi otomatis',
-                          style: TextStyle(fontSize: 11.5),
-                        ),
+                        
                         value: backup.wifiOnly,
                         onChanged: (val) => backup.setWifiOnly(val),
                       ),
@@ -468,10 +457,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                           'Sertakan Foto Struk Transaksi',
                           style: TextStyle(fontSize: 13.5),
                         ),
-                        subtitle: const Text(
-                          'Sinkronisasi inkremental: hanya foto baru yang diunggah ke Drive',
-                          style: TextStyle(fontSize: 11.5),
-                        ),
+                       
                         value: backup.includeReceipts,
                         onChanged: (val) => backup.setIncludeReceipts(val),
                       ),
