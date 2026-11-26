@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../models/currency_model.dart';
 import '../../models/transaction_model.dart';
 import '../../providers/transaction_provider.dart';
 import '../../utils/currency_formatter.dart';
@@ -25,11 +26,17 @@ class GalleryScreen extends StatefulWidget {
   State<GalleryScreen> createState() => _GalleryScreenState();
 }
 
-class _GalleryScreenState extends State<GalleryScreen> {
-  List<TransactionModel> _images = [];
+class _GalleryScreenState extends State<GalleryScreen>
+    with AutomaticKeepAliveClientMixin {
+  static final DateFormat _timeFmt = DateFormat('HH:mm');
+
+  List<GroupedTransaction> _groupedImages = const [];
   bool _isLoading = true;
   int _loadRequestId = 0;
   TransactionProvider? _provider;
+
+  @override
+  bool get wantKeepAlive => !widget.isStandalone;
 
   @override
   void initState() {
@@ -77,9 +84,13 @@ class _GalleryScreenState extends State<GalleryScreen> {
         endDate: widget.endDate,
         hasImage: true,
       );
+      final grouped = txs.isEmpty
+          ? const <GroupedTransaction>[]
+          : AppDateUtils.groupTransactionsByDate(txs);
+
       if (mounted && requestId == _loadRequestId) {
         setState(() {
-          _images = txs;
+          _groupedImages = grouped;
           _isLoading = false;
         });
       }
@@ -92,24 +103,32 @@ class _GalleryScreenState extends State<GalleryScreen> {
     }
   }
 
+  int _computeThumbnailCacheWidth(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    return ((screenWidth / 3.0) * dpr).round().clamp(180, 480);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<TransactionProvider>();
-    final currency = provider.currency;
+    super.build(context);
+    final currency = context.select<TransactionProvider, CurrencyModel>(
+      (p) => p.currency,
+    );
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     Widget content;
     if (_isLoading) {
       content = const Center(child: CircularProgressIndicator());
-    } else if (_images.isEmpty) {
+    } else if (_groupedImages.isEmpty) {
       content = RefreshIndicator(
         onRefresh: _loadImages,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             SizedBox(
-              height: MediaQuery.of(context).size.height * 0.5,
+              height: MediaQuery.sizeOf(context).height * 0.5,
               child: Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -151,209 +170,217 @@ class _GalleryScreenState extends State<GalleryScreen> {
         ),
       );
     } else {
-      final groupedList = AppDateUtils.groupTransactionsByDate(_images);
       final horizontalPadding = widget.isStandalone ? 16.0 : 0.0;
+      final thumbCacheWidth = _computeThumbnailCacheWidth(context);
 
       content = RefreshIndicator(
         onRefresh: _loadImages,
-        child: ListView.builder(
+        child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(
-            horizontalPadding,
-            4.0,
-            horizontalPadding,
-            100.0,
-          ),
-          itemCount: groupedList.length,
-        itemBuilder: (context, groupIndex) {
-          final group = groupedList[groupIndex];
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Date Header matching HistoryScreen
-              TransactionDateHeader(
-                group: group,
-                currency: currency,
-              ),
-              const SizedBox(height: 8),
-
-              // Grid of Photos for this date
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: EdgeInsets.zero,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                  childAspectRatio: 0.85,
+          slivers: [
+            const SliverToBoxAdapter(child: SizedBox(height: 4)),
+            for (final group in _groupedImages) ...[
+              SliverPadding(
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                sliver: SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: TransactionDateHeader(
+                      group: group,
+                      currency: currency,
+                    ),
+                  ),
                 ),
-                itemCount: group.transactions.length,
-                itemBuilder: (context, itemIndex) {
-                  final tx = group.transactions[itemIndex];
-                  return _buildPhotoTile(context, tx, currency, isDark);
-                },
               ),
-              const SizedBox(height: 14),
+              SliverPadding(
+                padding: EdgeInsets.only(
+                  left: horizontalPadding,
+                  right: horizontalPadding,
+                  bottom: 14.0,
+                ),
+                sliver: SliverGrid.builder(
+                  addAutomaticKeepAlives: false,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: 0.85,
+                  ),
+                  itemCount: group.transactions.length,
+                  itemBuilder: (context, itemIndex) {
+                    final tx = group.transactions[itemIndex];
+                    return RepaintBoundary(
+                      child: _PhotoTile(
+                        key: ValueKey(tx.id),
+                        tx: tx,
+                        currency: currency,
+                        isDark: isDark,
+                        thumbCacheWidth: thumbCacheWidth,
+                        timeText: _timeFmt.format(tx.dateTime),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  TransactionDetailScreen(transactionId: tx.id),
+                            ),
+                          ).then((_) => _loadImages());
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
             ],
-          );
-        },
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
+          ],
         ),
       );
     }
 
     if (widget.isStandalone) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Galeri Foto Transaksi'),
-        ),
+        appBar: AppBar(title: const Text('Galeri Foto Transaksi')),
         body: content,
       );
     }
 
     return content;
   }
+}
 
-  Widget _buildPhotoTile(
-    BuildContext context,
-    TransactionModel tx,
-    dynamic currency,
-    bool isDark,
-  ) {
+class _PhotoTile extends StatelessWidget {
+  final TransactionModel tx;
+  final CurrencyModel currency;
+  final bool isDark;
+  final int thumbCacheWidth;
+  final String timeText;
+  final VoidCallback onTap;
+
+  const _PhotoTile({
+    super.key,
+    required this.tx,
+    required this.currency,
+    required this.isDark,
+    required this.thumbCacheWidth,
+    required this.timeText,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final imagePath = tx.img ?? '';
-    final file = File(imagePath);
-    final fileExists = imagePath.isNotEmpty && file.existsSync();
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF13222D) : Colors.grey.shade100,
+    return Material(
+      color: isDark ? const Color(0xFF13222D) : Colors.grey.shade100,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
+        side: BorderSide(
           color: isDark ? Colors.white12 : Colors.black.withOpacity(0.06),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(9),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => TransactionDetailScreen(transactionId: tx.id),
-                ),
-              ).then((_) => _loadImages());
-            },
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // 1. Photo Image or Placeholder
-                fileExists
-                    ? Image.file(
-                        file,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            _buildBrokenImagePlaceholder(isDark),
-                      )
-                    : _buildBrokenImagePlaceholder(isDark),
-
-                // 2. Bottom Gradient with Time (Jam) & Amount Overlay
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(
-                        bottom: Radius.circular(9),
-                      ),
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.85),
-                          Colors.black.withOpacity(0.45),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Jam (Time) formatted matching app standard
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.access_time_rounded,
-                              size: 11,
-                              color: Colors.white,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              DateFormat('HH:mm').format(tx.dateTime),
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                                shadows: [
-                                  Shadow(
-                                    blurRadius: 3,
-                                    color: Colors.black87,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-
-                        // Amount with income/expense color
-                        Text(
-                          CurrencyFormatter.format(tx.amount, currency),
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.bold,
-                            color: tx.type == 'income'
-                                ? const Color(0xFF4ADE80)
-                                : Colors.white,
-                            shadows: const [
-                              Shadow(
-                                blurRadius: 3,
-                                color: Colors.black87,
-                              ),
-                            ],
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (imagePath.isNotEmpty)
+              Image.file(
+                File(imagePath),
+                fit: BoxFit.cover,
+                cacheWidth: thumbCacheWidth,
+                filterQuality: FilterQuality.low,
+                gaplessPlayback: true,
+                errorBuilder: (_, _, _) => _BrokenImagePlaceholder(isDark),
+              )
+            else
+              _BrokenImagePlaceholder(isDark),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.85),
+                      Colors.black.withOpacity(0.45),
+                      Colors.transparent,
+                    ],
                   ),
                 ),
-              ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 5,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.access_time_rounded,
+                            size: 11,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            timeText,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                              shadows: [
+                                Shadow(
+                                  blurRadius: 3,
+                                  color: Colors.black87,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        CurrencyFormatter.format(tx.amount, currency),
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.bold,
+                          color: tx.type == 'income'
+                              ? const Color(0xFF4ADE80)
+                              : Colors.white,
+                          shadows: const [
+                            Shadow(blurRadius: 3, color: Colors.black87),
+                          ],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildBrokenImagePlaceholder(bool isDark) {
-    return Container(
+class _BrokenImagePlaceholder extends StatelessWidget {
+  final bool isDark;
+  const _BrokenImagePlaceholder(this.isDark);
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
       color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade200,
       child: Center(
         child: Icon(

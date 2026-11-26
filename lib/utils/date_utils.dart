@@ -4,6 +4,11 @@ import '../models/transaction_model.dart';
 enum ViewMode { week, month, quarter, year }
 
 class AppDateUtils {
+  static final DateFormat _shortDayMonthFmt = DateFormat('dd MMM');
+  static final DateFormat _fullDateFmt = DateFormat('dd MMM yyyy');
+  static final DateFormat _monthYearFmt = DateFormat('MMMM yyyy');
+  static final DateFormat _yearFmt = DateFormat('yyyy');
+
   static DateTime getStartOfPeriod(DateTime date, ViewMode mode) {
     switch (mode) {
       case ViewMode.week:
@@ -42,14 +47,14 @@ class AppDateUtils {
       case ViewMode.week:
         final start = getStartOfPeriod(date, mode);
         final end = getEndOfPeriod(date, mode);
-        return '${DateFormat('dd MMM').format(start)} - ${DateFormat('dd MMM yyyy').format(end)}';
+        return '${_shortDayMonthFmt.format(start)} - ${_fullDateFmt.format(end)}';
       case ViewMode.month:
-        return DateFormat('MMMM yyyy').format(date);
+        return _monthYearFmt.format(date);
       case ViewMode.quarter:
         final quarter = ((date.month - 1) ~/ 3) + 1;
         return 'Q$quarter ${date.year}';
       case ViewMode.year:
-        return DateFormat('yyyy').format(date);
+        return _yearFmt.format(date);
     }
   }
 
@@ -85,7 +90,7 @@ class AppDateUtils {
       } else if (txDay == yesterday) {
         dateKey = 'Yesterday';
       } else {
-        dateKey = DateFormat('dd MMM yyyy').format(txDay);
+        dateKey = _fullDateFmt.format(txDay);
       }
 
       map.putIfAbsent(dateKey, () => []);

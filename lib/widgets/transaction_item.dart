@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
+import '../models/category_model.dart';
 import '../models/currency_model.dart';
 import '../models/transaction_model.dart';
 import '../providers/transaction_provider.dart';
@@ -11,15 +12,28 @@ import '../utils/date_utils.dart';
 
 class TransactionItemTile extends StatelessWidget {
   final TransactionModel item;
+  final CategoryModel? category;
+  final CurrencyModel? currency;
   final VoidCallback? onTap;
 
-  const TransactionItemTile({super.key, required this.item, this.onTap});
+  const TransactionItemTile({
+    super.key,
+    required this.item,
+    this.category,
+    this.currency,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<TransactionProvider>();
-    final category = provider.getCategoryById(item.category);
-    final currency = provider.currency;
+    final resolvedCategory =
+        category ??
+        context.select<TransactionProvider, CategoryModel?>(
+          (p) => p.getCategoryById(item.category),
+        );
+    final resolvedCurrency =
+        currency ??
+        context.select<TransactionProvider, CurrencyModel>((p) => p.currency);
     final theme = Theme.of(context);
 
     final isIncome = item.type == 'income';
@@ -38,10 +52,10 @@ class TransactionItemTile extends StatelessWidget {
         : '';
 
     final iconName =
-        category?.icon ??
+        resolvedCategory?.icon ??
         (item.type == 'transfer' ? 'bank-transfer' : 'dots-horizontal');
-    final iconColor = category != null
-        ? AppColors.parseHex(category.color)
+    final iconColor = resolvedCategory != null
+        ? AppColors.parseHex(resolvedCategory.color)
         : (item.type == 'transfer' ? AppColors.transfer : Colors.grey);
 
     final timeAgoStr = AppDateUtils.formatTimeAgo(item.dateTime);
@@ -50,22 +64,19 @@ class TransactionItemTile extends StatelessWidget {
     final titleColor = isDark ? Colors.white : const Color(0xFF11181C);
     final subtitleColor = isDark ? Colors.white60 : const Color(0xFF777777);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+        color: theme.cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: isDark
+                ? Colors.white.withOpacity(0.06)
+                : Colors.black.withOpacity(0.045),
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: onTap,
@@ -108,7 +119,7 @@ class TransactionItemTile extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '$prefix${CurrencyFormatter.format(item.amount, currency)}',
+                  '$prefix${CurrencyFormatter.format(item.amount, resolvedCurrency)}',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
@@ -125,6 +136,10 @@ class TransactionItemTile extends StatelessWidget {
 }
 
 class TransactionDateHeader extends StatelessWidget {
+  static final DateFormat _dayFmt = DateFormat('dd');
+  static final DateFormat _dayNameFmt = DateFormat('EEEE');
+  static final DateFormat _monthYearFmt = DateFormat('MMM yyyy');
+
   final GroupedTransaction group;
   final CurrencyModel currency;
 
@@ -147,9 +162,9 @@ class TransactionDateHeader extends StatelessWidget {
 
     final isSpecialDate = group.date == 'Today' || group.date == 'Yesterday';
     final dt = DateTime.fromMillisecondsSinceEpoch(group.timestamp);
-    final dayNumber = DateFormat('dd').format(dt);
-    final dayName = DateFormat('EEEE').format(dt);
-    final monthYear = DateFormat('MMM yyyy').format(dt);
+    final dayNumber = _dayFmt.format(dt);
+    final dayName = _dayNameFmt.format(dt);
+    final monthYear = _monthYearFmt.format(dt);
 
     final formattedAmount = CurrencyFormatter.format(group.total, currency);
 

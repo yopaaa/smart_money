@@ -15,6 +15,24 @@ import '../transactions/transaction_detail_screen.dart';
 import 'gallery_screen.dart';
 import 'search_screen.dart';
 
+sealed class _HistoryEntry {
+  const _HistoryEntry();
+}
+
+class _HistoryHeaderEntry extends _HistoryEntry {
+  final GroupedTransaction group;
+  const _HistoryHeaderEntry(this.group);
+}
+
+class _HistoryTxEntry extends _HistoryEntry {
+  final TransactionModel transaction;
+  const _HistoryTxEntry(this.transaction);
+}
+
+class _HistorySpacerEntry extends _HistoryEntry {
+  const _HistorySpacerEntry();
+}
+
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
@@ -25,9 +43,16 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   ViewMode _viewMode = ViewMode.month;
   DateTime _selectedDate = DateTime.now();
-  int _currentTab = 0; // 0: List, 1: Gallery
+  late final ValueNotifier<int> _tabNotifier;
   late final PageController _pageController;
-  List<TransactionModel> _currentTransactions = [];
+
+  List<_HistoryEntry> _entries = const [];
+  int _totalIncome = 0;
+  int _totalExpense = 0;
+  int _netTotal = 0;
+  late int _periodStartMs;
+  late int _periodEndMs;
+
   bool _isLoading = false;
   int _fetchRequestId = 0;
   TransactionProvider? _provider;
@@ -35,7 +60,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
+    _tabNotifier = ValueNotifier<int>(0);
     _pageController = PageController(initialPage: 0);
+    _recomputePeriodBounds();
     _fetchTransactions();
   }
 
@@ -53,13 +80,52 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void dispose() {
     _provider?.removeListener(_onProviderChanged);
+    _tabNotifier.dispose();
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _recomputePeriodBounds() {
+    _periodStartMs = AppDateUtils.getStartOfPeriod(
+      _selectedDate,
+      _viewMode,
+    ).millisecondsSinceEpoch;
+    _periodEndMs = AppDateUtils.getEndOfPeriod(
+      _selectedDate,
+      _viewMode,
+    ).millisecondsSinceEpoch;
   }
 
   void _onProviderChanged() {
     if (!mounted) return;
     _fetchTransactions(showLoading: false);
+  }
+
+  void _rebuildCachedData(List<TransactionModel> transactions) {
+    int income = 0;
+    int expense = 0;
+    for (final tx in transactions) {
+      if (tx.type == 'income') {
+        income += tx.amount;
+      } else if (tx.type == 'expense') {
+        expense += tx.amount;
+      }
+    }
+
+    final grouped = AppDateUtils.groupTransactionsByDate(transactions);
+    final entries = <_HistoryEntry>[];
+    for (final group in grouped) {
+      entries.add(_HistoryHeaderEntry(group));
+      for (final tx in group.transactions) {
+        entries.add(_HistoryTxEntry(tx));
+      }
+      entries.add(const _HistorySpacerEntry());
+    }
+
+    _totalIncome = income;
+    _totalExpense = expense;
+    _netTotal = income - expense;
+    _entries = entries;
   }
 
   Future<void> _fetchTransactions({bool showLoading = true}) async {
@@ -72,23 +138,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     try {
       final provider = _provider ?? context.read<TransactionProvider>();
-      final start = AppDateUtils.getStartOfPeriod(
-        _selectedDate,
-        _viewMode,
-      ).millisecondsSinceEpoch;
-      final end = AppDateUtils.getEndOfPeriod(
-        _selectedDate,
-        _viewMode,
-      ).millisecondsSinceEpoch;
-
       final txs = await provider.filterTransactions(
-        startDate: start,
-        endDate: end,
+        startDate: _periodStartMs,
+        endDate: _periodEndMs,
       );
 
       if (mounted && requestId == _fetchRequestId) {
         setState(() {
-          _currentTransactions = txs;
+          _rebuildCachedData(txs);
           _isLoading = false;
         });
       }
@@ -101,28 +158,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  void _updatePeriod({DateTime? date, ViewMode? mode}) {
+    setState(() {
+      if (date != null) _selectedDate = date;
+      if (mode != null) _viewMode = mode;
+      _recomputePeriodBounds();
+    });
+    _fetchTransactions();
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<TransactionProvider>();
     final currency = provider.currency;
     final theme = Theme.of(context);
-
-    // Calculate overview
-    int totalIncome = 0;
-    int totalExpense = 0;
-    for (var tx in _currentTransactions) {
-      if (tx.type == 'income') {
-        totalIncome += tx.amount;
-      } else if (tx.type == 'expense') {
-        totalExpense += tx.amount;
-      }
-    }
-    final netTotal = totalIncome - totalExpense;
-
-    final groupedList = AppDateUtils.groupTransactionsByDate(
-      _currentTransactions,
-    );
-
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
@@ -131,16 +180,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
         elevation: 0,
         centerTitle: false,
         backgroundColor: Colors.transparent,
-        title: AnimatedTabBar(
-          activeIndex: _currentTab,
-          onTabChanged: (index) {
-            setState(() => _currentTab = index);
-            _pageController.animateToPage(
-              index,
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
-            );
-          },
+        title: ValueListenableBuilder<int>(
+          valueListenable: _tabNotifier,
+          builder: (_, activeTab, _) => AnimatedTabBar(
+            activeIndex: activeTab,
+            onTabChanged: (index) {
+              _tabNotifier.value = index;
+              _pageController.animateToPage(
+                index,
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+              );
+            },
+          ),
         ),
         actions: [
           IconButton(
@@ -153,7 +205,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const SearchScreen()),
-              ).then((_) => _fetchTransactions());
+              ).then((_) => _fetchTransactions(showLoading: false));
             },
           ),
           IconButton(
@@ -165,8 +217,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             onPressed: () async {
               final selected = await showPeriodPickerDialog(context, _viewMode);
               if (selected != null && selected != _viewMode) {
-                setState(() => _viewMode = selected);
-                _fetchTransactions();
+                _updatePeriod(mode: selected);
               }
             },
           ),
@@ -178,51 +229,47 @@ class _HistoryScreenState extends State<HistoryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Period Navigator with interactive mode badge & selector
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4.0),
               child: PeriodNavigator(
                 selectedDate: _selectedDate,
                 viewMode: _viewMode,
-                onDateChange: (date) {
-                  setState(() => _selectedDate = date);
-                  _fetchTransactions();
-                },
-                onModeChange: (mode) {
-                  setState(() => _viewMode = mode);
-                  _fetchTransactions();
-                },
+                onDateChange: (date) => _updatePeriod(date: date),
+                onModeChange: (mode) => _updatePeriod(mode: mode),
               ),
             ),
-
-            // Content with smooth sliding PageView
             Expanded(
               child: PageView(
                 controller: _pageController,
                 onPageChanged: (index) {
-                  setState(() => _currentTab = index);
+                  _tabNotifier.value = index;
                 },
                 children: [
-                  // Tab 0: History List View
-                  _buildHistoryListView(
-                    totalIncome: totalIncome,
-                    totalExpense: totalExpense,
-                    netTotal: netTotal,
+                  _HistoryListTab(
+                    isLoading: _isLoading,
+                    entries: _entries,
+                    totalIncome: _totalIncome,
+                    totalExpense: _totalExpense,
+                    netTotal: _netTotal,
                     currency: currency,
-                    groupedList: groupedList,
-                    theme: theme,
+                    provider: provider,
+                    onRefresh: () async {
+                      await provider.loadData();
+                      await _fetchTransactions(showLoading: false);
+                    },
+                    onTransactionTap: (tx) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              TransactionDetailScreen(transactionId: tx.id),
+                        ),
+                      ).then((_) => _fetchTransactions(showLoading: false));
+                    },
                   ),
-
-                  // Tab 1: Gallery View
                   GalleryScreen(
-                    startDate: AppDateUtils.getStartOfPeriod(
-                      _selectedDate,
-                      _viewMode,
-                    ).millisecondsSinceEpoch,
-                    endDate: AppDateUtils.getEndOfPeriod(
-                      _selectedDate,
-                      _viewMode,
-                    ).millisecondsSinceEpoch,
+                    startDate: _periodStartMs,
+                    endDate: _periodEndMs,
                   ),
                 ],
               ),
@@ -232,139 +279,192 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
     );
   }
+}
 
-  Widget _buildHistoryListView({
-    required int totalIncome,
-    required int totalExpense,
-    required int netTotal,
-    required CurrencyModel currency,
-    required List<GroupedTransaction> groupedList,
-    required ThemeData theme,
-  }) {
-    if (_isLoading) {
+class _HistoryListTab extends StatefulWidget {
+  final bool isLoading;
+  final List<_HistoryEntry> entries;
+  final int totalIncome;
+  final int totalExpense;
+  final int netTotal;
+  final CurrencyModel currency;
+  final TransactionProvider provider;
+  final Future<void> Function() onRefresh;
+  final ValueChanged<TransactionModel> onTransactionTap;
+
+  const _HistoryListTab({
+    required this.isLoading,
+    required this.entries,
+    required this.totalIncome,
+    required this.totalExpense,
+    required this.netTotal,
+    required this.currency,
+    required this.provider,
+    required this.onRefresh,
+    required this.onTransactionTap,
+  });
+
+  @override
+  State<_HistoryListTab> createState() => _HistoryListTabState();
+}
+
+class _HistoryListTabState extends State<_HistoryListTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    if (widget.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final titleColor = isDark ? Colors.white : const Color(0xFF11181C);
     final descColor = isDark ? Colors.white60 : const Color(0xFF777777);
 
     return RefreshIndicator(
-      onRefresh: () async {
-        await context.read<TransactionProvider>().loadData();
-        await _fetchTransactions();
-      },
-      child: ListView(
+      onRefresh: widget.onRefresh,
+      child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 100),
-        children: [
-        // Overview Box
-        Padding(
-          padding: const EdgeInsets.only(top: 4.0, bottom: 12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 4.0, bottom: 12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Overview',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: titleColor,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        'Overview',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: titleColor,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(Icons.info_outline, size: 16, color: descColor),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  Icon(Icons.info_outline, size: 16, color: descColor),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Income',
+                        style: TextStyle(color: descColor, fontSize: 14),
+                      ),
+                      Text(
+                        CurrencyFormatter.format(
+                          widget.totalIncome,
+                          widget.currency,
+                        ),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: AppColors.income,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Expense',
+                        style: TextStyle(color: descColor, fontSize: 14),
+                      ),
+                      Text(
+                        CurrencyFormatter.format(
+                          -widget.totalExpense,
+                          widget.currency,
+                        ),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: AppColors.expense,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Total',
+                        style: TextStyle(color: descColor, fontSize: 14),
+                      ),
+                      Text(
+                        CurrencyFormatter.format(
+                          widget.netTotal,
+                          widget.currency,
+                        ),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: widget.netTotal >= 0
+                              ? AppColors.income
+                              : AppColors.expense,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Income',
-                    style: TextStyle(color: descColor, fontSize: 14),
-                  ),
-                  Text(
-                    CurrencyFormatter.format(totalIncome, currency),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: AppColors.income,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Expense',
-                    style: TextStyle(color: descColor, fontSize: 14),
-                  ),
-                  Text(
-                    CurrencyFormatter.format(-totalExpense, currency),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: AppColors.expense,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Total',
-                    style: TextStyle(color: descColor, fontSize: 14),
-                  ),
-                  Text(
-                    CurrencyFormatter.format(netTotal, currency),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: netTotal >= 0
-                          ? AppColors.income
-                          : AppColors.expense,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        if (groupedList.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 48.0),
-            child: Center(
-              child: Text(
-                'Tidak ada transaksi pada periode ini',
-                style: TextStyle(color: Colors.grey),
               ),
             ),
-          )
-        else
-          ...groupedList.map((group) {
-            return TransactionGroupWidget(
-              group: group,
-              currency: currency,
-              onTransactionTap: (tx) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        TransactionDetailScreen(transactionId: tx.id),
+          ),
+          if (widget.entries.isEmpty)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 48.0),
+                child: Center(
+                  child: Text(
+                    'Tidak ada transaksi pada periode ini',
+                    style: TextStyle(color: Colors.grey),
                   ),
-                ).then((_) => _fetchTransactions());
-              },
-            );
-          }),
-      ],
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.only(bottom: 100),
+              sliver: SliverList.builder(
+                addAutomaticKeepAlives: false,
+                itemCount: widget.entries.length,
+                itemBuilder: (context, index) {
+                  final entry = widget.entries[index];
+                  switch (entry) {
+                    case _HistoryHeaderEntry():
+                      return TransactionDateHeader(
+                        group: entry.group,
+                        currency: widget.currency,
+                      );
+                    case _HistoryTxEntry():
+                      final tx = entry.transaction;
+                      return RepaintBoundary(
+                        child: TransactionItemTile(
+                          key: ValueKey(tx.id),
+                          item: tx,
+                          category: widget.provider.getCategoryById(
+                            tx.category,
+                          ),
+                          currency: widget.currency,
+                          onTap: () => widget.onTransactionTap(tx),
+                        ),
+                      );
+                    case _HistorySpacerEntry():
+                      return const SizedBox(height: 15);
+                  }
+                },
+              ),
+            ),
+        ],
       ),
     );
   }

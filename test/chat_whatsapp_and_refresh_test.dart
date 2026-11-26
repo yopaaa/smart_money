@@ -224,7 +224,11 @@ void main() {
       expect(find.byType(RefreshIndicator), findsWidgets);
 
       // Perform a pull-down gesture
-      await tester.fling(find.byType(ListView).first, const Offset(0, 300), 1000);
+      await tester.fling(
+        find.byType(CustomScrollView).first,
+        const Offset(0, 300),
+        1000,
+      );
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await tester.pumpAndSettle();
