@@ -59,6 +59,8 @@ class AppColors {
         backgroundColor: lightBackground,
         foregroundColor: lightText,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         centerTitle: false,
       ),
     );
@@ -86,6 +88,8 @@ class AppColors {
         backgroundColor: darkBackground,
         foregroundColor: darkText,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         centerTitle: false,
       ),
     );

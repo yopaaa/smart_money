@@ -42,7 +42,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
       appBar: AppBar(
         titleSpacing: 16,
         elevation: 0,
-        backgroundColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        backgroundColor: theme.scaffoldBackgroundColor,
         title: const Text(
           'Buckets And Balances',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),

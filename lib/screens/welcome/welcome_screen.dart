@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
-import '../settings/backup_restore_screen.dart';
+import '../../providers/backup_provider.dart';
+import '../../providers/transaction_provider.dart';
+import '../settings/drive_restore_sheet.dart';
 import 'add_bucket_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -63,6 +66,133 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     _timer?.cancel();
     _pageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _showOnboardingRestoreOptions() async {
+    _timer?.cancel();
+
+    final backupProvider =
+        Provider.of<BackupProvider?>(context, listen: false);
+    final txProvider =
+        Provider.of<TransactionProvider?>(context, listen: false);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Pilih Sumber Restore',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Pulihkan data keuangan Anda dari Google Drive atau file backup lokal (.smbak).',
+                  style: TextStyle(fontSize: 12.5, color: Colors.grey),
+                ),
+                const SizedBox(height: 12),
+                Material(
+                  color: Theme.of(sheetCtx).cardColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(color: Theme.of(sheetCtx).dividerColor),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: Color(0xFFEFF6FF),
+                          child: Icon(
+                            Icons.cloud_download_outlined,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
+                        ),
+                        title: const Text(
+                          'Restore dari Google Drive',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: const Text(
+                          'Ambil snapshot & foto struk dari App Data Folder',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () async {
+                          Navigator.pop(sheetCtx);
+                          if (!mounted ||
+                              backupProvider == null ||
+                              txProvider == null) {
+                            return;
+                          }
+                          await showGoogleDriveRestoreSheet(
+                            context: context,
+                            backup: backupProvider,
+                            txProvider: txProvider,
+                          );
+                        },
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              AppColors.primary.withValues(alpha: 0.12),
+                          child: const Icon(
+                            Icons.folder_open_rounded,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
+                        ),
+                        title: const Text(
+                          'Restore dari File Lokal',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: const Text(
+                          'Pilih file .smbak, .zip, atau .db dari perangkat',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () async {
+                          Navigator.pop(sheetCtx);
+                          if (!mounted) return;
+                          await restoreFromLocalBackupFile(
+                            context: context,
+                            txProvider: txProvider,
+                            backupProvider: backupProvider,
+                            confirmOverwrite: false,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -189,13 +319,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               ),
               const SizedBox(height: 12),
               TextButton(
-                onPressed: () {
-                  _timer?.cancel();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const BackupRestoreScreen()),
-                  );
-                },
+                onPressed: _showOnboardingRestoreOptions,
                 child: const Text(
                   'RESTORE DATA',
                   style: TextStyle(

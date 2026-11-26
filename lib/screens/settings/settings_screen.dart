@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../providers/backup_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/transaction_provider.dart';
+import '../../services/backup_sync_service.dart';
 import '../home/gallery_screen.dart';
+import 'account_info_screen.dart';
 import 'app_info_screen.dart';
 import 'auto_lock_settings_screen.dart';
 import 'backup_restore_screen.dart';
@@ -64,6 +68,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final txProvider = context.watch<TransactionProvider>();
     final security =
         Provider.of<SecurityProvider?>(context) ?? SecurityProvider.instance;
+    final backupProvider = Provider.of<BackupProvider?>(context);
     final theme = Theme.of(context);
     final isDark = themeProvider.isDarkMode;
     final currentCurrency = txProvider.currency;
@@ -110,6 +115,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 children: [
+                  // Logged-in Google Profile Banner
+                  if (backupProvider != null && backupProvider.isSignedIn) ...[
+                    _buildProfileBanner(
+                      context: context,
+                      backupProvider: backupProvider,
+                      cardBg: cardBg,
+                      titleColor: itemTitleColor,
+                      subtitleColor: subtitleColor,
+                    ),
+                    const SizedBox(height: 18),
+                  ],
+
                   // PROFILE Section
                   _buildSectionHeader('PROFILE', sectionTitleColor),
                   _buildCard(
@@ -117,25 +134,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       _buildNavigationItem(
                         title: 'Account Information',
-                        subtitle: 'Update your personal details',
+                        subtitle: backupProvider?.isSignedIn == true
+                            ? backupProvider!.account!.email
+                            : 'Hubungkan akun Google & info profil',
                         titleColor: itemTitleColor,
                         subtitleColor: subtitleColor,
                         onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Account Information feature')),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AccountInfoScreen(),
+                            ),
                           );
                         },
                       ),
                       Divider(height: 1, color: dividerColor),
                       _buildNavigationItem(
                         title: 'Backup & Restore',
-                        subtitle: 'Manage your data backup',
+                        subtitle: backupProvider?.lastBackupAt != null
+                            ? 'Terakhir: ${DateFormat('dd MMM, HH:mm').format(backupProvider!.lastBackupAt!)}'
+                            : 'Google Drive & cadangan lokal',
                         titleColor: itemTitleColor,
                         subtitleColor: subtitleColor,
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const BackupRestoreScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const BackupRestoreScreen(),
+                            ),
                           );
                         },
                       ),
@@ -275,14 +301,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       _buildSwitchItem(
                         title: 'Auto Backup',
-                        subtitle: 'Automatically backup your data',
-                        value: _autoBackupEnabled,
+                        subtitle: backupProvider != null &&
+                                backupProvider.schedule != BackupSchedule.off
+                            ? 'Terjadwal ${backupProvider.schedule.label} ke Google Drive'
+                            : 'Aktifkan jadwal backup otomatis',
+                        value: backupProvider != null
+                            ? backupProvider.schedule != BackupSchedule.off
+                            : _autoBackupEnabled,
                         titleColor: itemTitleColor,
                         subtitleColor: subtitleColor,
-                        onChanged: (val) {
-                          setState(() {
-                            _autoBackupEnabled = val;
-                          });
+                        onChanged: (val) async {
+                          if (backupProvider != null) {
+                            await backupProvider.setSchedule(
+                              val
+                                  ? BackupSchedule.daily
+                                  : BackupSchedule.off,
+                            );
+                          } else {
+                            setState(() {
+                              _autoBackupEnabled = val;
+                            });
+                          }
                         },
                       ),
                       Divider(height: 1, color: dividerColor),
@@ -455,6 +494,130 @@ class _SettingsScreenState extends State<SettingsScreen> {
               size: 20,
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileBanner({
+    required BuildContext context,
+    required BackupProvider backupProvider,
+    required Color cardBg,
+    required Color titleColor,
+    required Color subtitleColor,
+  }) {
+    final profile = backupProvider.account!;
+    final initial = profile.displayName.isNotEmpty
+        ? profile.displayName[0].toUpperCase()
+        : 'G';
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2563EB).withOpacity(0.24),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AccountInfoScreen()),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 26,
+                  backgroundColor: Colors.white.withOpacity(0.22),
+                  backgroundImage: (profile.photoUrl != null &&
+                          profile.photoUrl!.trim().isNotEmpty)
+                      ? NetworkImage(profile.photoUrl!)
+                      : null,
+                  child: (profile.photoUrl == null ||
+                          profile.photoUrl!.trim().isEmpty)
+                      ? Text(
+                          initial,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        profile.displayName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        profile.email,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          backupProvider.schedule == BackupSchedule.off
+                              ? 'Google Drive Terhubung'
+                              : 'Auto-Backup: ${backupProvider.schedule.label}',
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

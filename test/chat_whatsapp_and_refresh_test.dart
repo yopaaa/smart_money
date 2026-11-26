@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:smart_money/constants/app_colors.dart';
 import 'package:smart_money/models/account_model.dart';
 import 'package:smart_money/models/category_model.dart';
 import 'package:smart_money/models/currency_model.dart';
 import 'package:smart_money/models/transaction_model.dart';
 import 'package:smart_money/providers/theme_provider.dart';
 import 'package:smart_money/providers/transaction_provider.dart';
+import 'package:smart_money/screens/accounts/accounts_screen.dart';
 import 'package:smart_money/screens/home/history_screen.dart';
 import 'package:smart_money/screens/transactions/transaction_form_screen.dart';
 import 'package:smart_money/services/chat_history_service.dart';
@@ -23,6 +25,9 @@ class MockChatTransactionProvider extends ChangeNotifier
         AccountModel(id: 'acc_cash', name: 'Cash', type: 'cash', balance: 500000),
         AccountModel(id: 'acc_bca', name: 'BCA', type: 'bank', balance: 2000000),
       ];
+
+  @override
+  List<AccountGroup> get groupedAccounts => [];
 
   @override
   List<CategoryModel> get categories => [
@@ -262,6 +267,44 @@ void main() {
       // HistoryScreen should auto-refresh and display the new transaction
       expect(find.text('Kopi Susu Suara'), findsOneWidget);
       expect(find.text('Tidak ada transaksi pada periode ini'), findsNothing);
+    });
+  });
+
+  group('AppBar Scroll Tint Tests', () {
+    test('AppColors themes disable Material 3 AppBar scrolledUnderElevation', () {
+      expect(AppColors.lightTheme.appBarTheme.scrolledUnderElevation, 0);
+      expect(
+        AppColors.lightTheme.appBarTheme.surfaceTintColor,
+        Colors.transparent,
+      );
+      expect(AppColors.darkTheme.appBarTheme.scrolledUnderElevation, 0);
+      expect(
+        AppColors.darkTheme.appBarTheme.surfaceTintColor,
+        Colors.transparent,
+      );
+    });
+
+    testWidgets('AccountsScreen AppBar keeps consistent background without scroll tint',
+        (tester) async {
+      final mockProvider = MockChatTransactionProvider();
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => ThemeProvider()),
+            ChangeNotifierProvider<TransactionProvider>.value(
+              value: mockProvider,
+            ),
+          ],
+          child: const MaterialApp(home: AccountsScreen()),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final appBar = tester.widget<AppBar>(find.byType(AppBar));
+      expect(appBar.scrolledUnderElevation, 0);
+      expect(appBar.surfaceTintColor, Colors.transparent);
     });
   });
 }

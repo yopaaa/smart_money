@@ -5,6 +5,7 @@ import '../models/account_model.dart';
 import '../models/category_model.dart';
 import '../models/currency_model.dart';
 import '../models/transaction_model.dart';
+import '../services/backup_sync_service.dart';
 import '../services/database_helper.dart';
 
 class TransactionProvider extends ChangeNotifier {
@@ -135,11 +136,13 @@ class TransactionProvider extends ChangeNotifier {
     int initialBalance = 0,
   }) async {
     await _db.addAccount(account, initialBalance: initialBalance);
+    await BackupSyncService.instance.markDataChanged();
     await loadData();
   }
 
   Future<void> editAccount(String id, AccountModel updated) async {
     await _db.editAccount(id, updated);
+    await BackupSyncService.instance.markDataChanged();
     await loadData();
   }
 
@@ -171,6 +174,7 @@ class TransactionProvider extends ChangeNotifier {
 
   Future<void> deleteAccount(String id) async {
     await _db.deleteAccount(id);
+    await BackupSyncService.instance.markDataChanged();
     await loadData();
   }
 
@@ -187,6 +191,7 @@ class TransactionProvider extends ChangeNotifier {
 
   Future<void> addTransaction(TransactionModel tx) async {
     await _db.addTransaction(tx);
+    await BackupSyncService.instance.markDataChanged();
     await loadData();
   }
 
@@ -194,16 +199,19 @@ class TransactionProvider extends ChangeNotifier {
     for (final tx in txList) {
       await _db.addTransaction(tx);
     }
+    await BackupSyncService.instance.markDataChanged();
     await loadData();
   }
 
   Future<void> editTransaction(String id, TransactionModel tx) async {
     await _db.editTransaction(id, tx);
+    await BackupSyncService.instance.markDataChanged();
     await loadData();
   }
 
   Future<void> deleteTransaction(String id) async {
     await _db.deleteTransaction(id);
+    await BackupSyncService.instance.markDataChanged();
     await loadData();
   }
 
@@ -247,6 +255,7 @@ class TransactionProvider extends ChangeNotifier {
 
   Future<void> restoreDeletedTransaction(String id) async {
     await _db.restoreDeletedTransaction(id);
+    await BackupSyncService.instance.markDataChanged();
     await loadData();
   }
 
@@ -264,16 +273,19 @@ class TransactionProvider extends ChangeNotifier {
 
   Future<void> addCategory(CategoryModel category) async {
     await _db.addCategory(category);
+    await BackupSyncService.instance.markDataChanged();
     await loadData();
   }
 
   Future<void> editCategory(String id, CategoryModel category) async {
     await _db.editCategory(id, category);
+    await BackupSyncService.instance.markDataChanged();
     await loadData();
   }
 
   Future<void> deleteCategory(String id) async {
     await _db.deleteCategory(id);
+    await BackupSyncService.instance.markDataChanged();
     await loadData();
   }
 

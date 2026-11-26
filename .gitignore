@@ -46,3 +46,4 @@ app.*.map.json
 ss
 RULES.md
 contoh-laporan-keuangan-arus-kas-perusahaan-jasa.jpg
+client_secret_*.json
