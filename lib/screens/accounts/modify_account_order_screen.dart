@@ -10,21 +10,33 @@ class ModifyAccountOrderScreen extends StatefulWidget {
   const ModifyAccountOrderScreen({super.key});
 
   @override
-  State<ModifyAccountOrderScreen> createState() => _ModifyAccountOrderScreenState();
+  State<ModifyAccountOrderScreen> createState() =>
+      _ModifyAccountOrderScreenState();
 }
 
 class _ModifyAccountOrderScreenState extends State<ModifyAccountOrderScreen> {
-  List<AccountGroup> _orderedGroups = [];
+  List<_EditableAccountGroup> _orderedGroups = [];
   bool _hasChanges = false;
+  bool _resetAccountsFlag = false;
 
   @override
   void initState() {
     super.initState();
     final provider = context.read<TransactionProvider>();
-    _orderedGroups = List.from(provider.groupedAccounts);
+    _orderedGroups = provider.groupedAccounts
+        .map(
+          (g) => _EditableAccountGroup(
+            title: g.title,
+            icon: g.icon,
+            color: g.color,
+            balance: g.balance,
+            accounts: List<AccountModel>.from(g.accounts),
+          ),
+        )
+        .toList();
   }
 
-  void _onReorder(int oldIndex, int newIndex) {
+  void _onReorderGroup(int oldIndex, int newIndex) {
     setState(() {
       if (newIndex > oldIndex) {
         newIndex -= 1;
@@ -35,18 +47,50 @@ class _ModifyAccountOrderScreenState extends State<ModifyAccountOrderScreen> {
     });
   }
 
+  void _onReorderAccountInGroup(int groupIndex, int oldIndex, int newIndex) {
+    setState(() {
+      final accounts = _orderedGroups[groupIndex].accounts;
+      if (newIndex > oldIndex) {
+        newIndex -= 1;
+      }
+      final acc = accounts.removeAt(oldIndex);
+      accounts.insert(newIndex, acc);
+      _resetAccountsFlag = false;
+      _hasChanges = true;
+    });
+  }
+
   Future<void> _reset() async {
     final provider = context.read<TransactionProvider>();
-    final defaultOrder = await provider.getDefaultGroupOrder();
+    final defaultGroupOrder = await provider.getDefaultGroupOrder();
+    final defaultAccIds = await provider.getDefaultAccountOrder();
+    final accIndexMap = <String, int>{
+      for (int i = 0; i < defaultAccIds.length; i++) defaultAccIds[i]: i,
+    };
+
+    if (!mounted) return;
     setState(() {
       _orderedGroups.sort((a, b) {
-        final idxA = defaultOrder.indexOf(a.title);
-        final idxB = defaultOrder.indexOf(b.title);
+        final idxA = defaultGroupOrder.indexOf(a.title);
+        final idxB = defaultGroupOrder.indexOf(b.title);
         if (idxA == -1 && idxB == -1) return 0;
         if (idxA == -1) return 1;
         if (idxB == -1) return -1;
         return idxA.compareTo(idxB);
       });
+      if (accIndexMap.isNotEmpty) {
+        for (final group in _orderedGroups) {
+          group.accounts.sort((a, b) {
+            final idxA = accIndexMap[a.id];
+            final idxB = accIndexMap[b.id];
+            if (idxA == null && idxB == null) return 0;
+            if (idxA == null) return 1;
+            if (idxB == null) return -1;
+            return idxA.compareTo(idxB);
+          });
+        }
+      }
+      _resetAccountsFlag = true;
       _hasChanges = true;
     });
   }
@@ -54,7 +98,16 @@ class _ModifyAccountOrderScreenState extends State<ModifyAccountOrderScreen> {
   Future<void> _saveChanges() async {
     final provider = context.read<TransactionProvider>();
     final orderedTitles = _orderedGroups.map((g) => g.title).toList();
-    await provider.updateAccountOrder(orderedTitles);
+    final orderedAccountIds = _resetAccountsFlag
+        ? const <String>[]
+        : _orderedGroups
+              .expand((g) => g.accounts.map((a) => a.id))
+              .toList();
+
+    await provider.updateAccountOrder(
+      orderedTitles,
+      orderedAccountIds: orderedAccountIds,
+    );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Account order saved successfully!')),
@@ -66,6 +119,9 @@ class _ModifyAccountOrderScreenState extends State<ModifyAccountOrderScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<TransactionProvider>();
     final currency = provider.currency;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final dividerColor = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
 
     return Scaffold(
       appBar: AppBar(
@@ -76,28 +132,29 @@ class _ModifyAccountOrderScreenState extends State<ModifyAccountOrderScreen> {
       ),
       body: Column(
         children: [
-          // Blue Info Box matching Screenshot 5
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
-                borderRadius: BorderRadius.circular(16),
+                color: isDark
+                    ? AppColors.primary.withOpacity(0.14)
+                    : const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(14),
                 border: const Border(
                   left: BorderSide(color: AppColors.primary, width: 4),
                 ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info, color: AppColors.primary, size: 20),
-                  const SizedBox(width: 12),
+                  const Icon(Icons.info, color: AppColors.primary, size: 19),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Hold and drag the ::: handle up/down to reorder',
+                      'Tahan & geser ::: pada tipe atau masing-masing akun untuk mengurutkan',
                       style: TextStyle(
-                        color: Colors.blue.shade900,
-                        fontSize: 14,
+                        color: isDark ? Colors.blue.shade200 : Colors.blue.shade900,
+                        fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -106,53 +163,184 @@ class _ModifyAccountOrderScreenState extends State<ModifyAccountOrderScreen> {
               ),
             ),
           ),
-
-          // Reorderable list
           Expanded(
             child: ReorderableListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              buildDefaultDragHandles: false,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
               itemCount: _orderedGroups.length,
-              onReorder: _onReorder,
-              itemBuilder: (context, index) {
-                final group = _orderedGroups[index];
-                final iconColor = AppColors.parseHex(group.color);
+              onReorder: _onReorderGroup,
+              itemBuilder: (context, groupIndex) {
+                final group = _orderedGroups[groupIndex];
+                final groupColor = AppColors.parseHex(group.color);
 
-                return ListTile(
-                  key: ValueKey(group.title),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                  leading: Row(
+                return Container(
+                  key: ValueKey('group_${group.title}'),
+                  margin: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: dividerColor),
+                  ),
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.drag_indicator, color: Colors.grey, size: 22),
-                      const SizedBox(width: 12),
-                      Icon(
-                        AppIcons.getIcon(group.icon),
-                        color: iconColor,
-                        size: 22,
+                      // Group header (drag handle reorders group/type order)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          children: [
+                            ReorderableDragStartListener(
+                              index: groupIndex,
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 4,
+                                ),
+                                child: Icon(
+                                  Icons.drag_indicator,
+                                  color: Colors.grey,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(
+                              AppIcons.getIcon(group.icon),
+                              color: groupColor,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                group.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14.5,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              CurrencyFormatter.format(group.balance, currency),
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.bold,
+                                color: group.balance < 0
+                                    ? AppColors.expense
+                                    : AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                      if (group.accounts.isNotEmpty) ...[
+                        Divider(height: 1, thickness: 0.8, color: dividerColor),
+                        ReorderableListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          buildDefaultDragHandles: false,
+                          padding: EdgeInsets.zero,
+                          itemCount: group.accounts.length,
+                          onReorder: (oldIdx, newIdx) =>
+                              _onReorderAccountInGroup(
+                                groupIndex,
+                                oldIdx,
+                                newIdx,
+                              ),
+                          itemBuilder: (context, accIndex) {
+                            final acc = group.accounts[accIndex];
+                            final accColor = AppColors.parseHex(acc.iconColor);
+
+                            return Material(
+                              key: ValueKey('acc_${acc.id}'),
+                              color: Colors.transparent,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      22,
+                                      8,
+                                      12,
+                                      8,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        ReorderableDragStartListener(
+                                          index: accIndex,
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 4,
+                                              vertical: 4,
+                                            ),
+                                            child: Icon(
+                                              Icons.drag_indicator,
+                                              color: Colors.grey.shade500,
+                                              size: 18,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Icon(
+                                          AppIcons.getIcon(acc.icon),
+                                          color: accColor,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            acc.name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 13.5,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          CurrencyFormatter.format(
+                                            acc.balance,
+                                            currency,
+                                          ),
+                                          style: TextStyle(
+                                            fontSize: 12.5,
+                                            color: isDark
+                                                ? Colors.white60
+                                                : Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (accIndex < group.accounts.length - 1)
+                                    Divider(
+                                      height: 1,
+                                      thickness: 0.6,
+                                      indent: 26,
+                                      endIndent: 12,
+                                      color: dividerColor,
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ],
-                  ),
-                  title: Text(
-                    group.title,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                  trailing: Text(
-                    CurrencyFormatter.format(group.balance, currency),
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: group.balance < 0 ? AppColors.expense : AppColors.primary,
-                    ),
                   ),
                 );
               },
             ),
           ),
-
-          // Bottom action buttons matching Screenshot 5
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -160,12 +348,17 @@ class _ModifyAccountOrderScreenState extends State<ModifyAccountOrderScreen> {
                       icon: const Icon(Icons.refresh, color: Colors.red),
                       label: const Text(
                         'Reset',
-                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         side: const BorderSide(color: Colors.red),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                       onPressed: _reset,
                     ),
@@ -179,11 +372,17 @@ class _ModifyAccountOrderScreenState extends State<ModifyAccountOrderScreen> {
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _hasChanges ? AppColors.primary : Colors.grey.shade100,
-                        foregroundColor: _hasChanges ? Colors.white : Colors.grey.shade400,
+                        backgroundColor: _hasChanges
+                            ? AppColors.primary
+                            : Colors.grey.shade100,
+                        foregroundColor: _hasChanges
+                            ? Colors.white
+                            : Colors.grey.shade400,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                       onPressed: _hasChanges ? _saveChanges : null,
                     ),
@@ -196,4 +395,20 @@ class _ModifyAccountOrderScreenState extends State<ModifyAccountOrderScreen> {
       ),
     );
   }
+}
+
+class _EditableAccountGroup {
+  final String title;
+  final String icon;
+  final String color;
+  final int balance;
+  final List<AccountModel> accounts;
+
+  _EditableAccountGroup({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.balance,
+    required this.accounts,
+  });
 }

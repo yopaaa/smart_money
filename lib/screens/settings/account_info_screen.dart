@@ -131,7 +131,7 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                   _infoTile(
                     icon: Icons.cloud_done_outlined,
                     label: 'Ruang Penyimpanan Drive',
-                    value: 'App Data Folder (Tersembunyi & Aman)',
+                    value: 'App Data Folder',
                     titleColor: titleColor,
                     subtextColor: subtextColor,
                   ),

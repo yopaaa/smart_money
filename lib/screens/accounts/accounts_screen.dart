@@ -259,7 +259,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                                           acc.name,
                                           style: const TextStyle(
                                             fontSize: 15,
-                                            fontWeight: FontWeight.bold,
+                                            fontWeight: FontWeight.w500,
                                           ),
                                         ),
                                       ),

@@ -211,6 +211,7 @@ class _StatsScreenState extends State<StatsScreen> {
 
     return Scaffold(
       body: SafeArea(
+        bottom: false,
         child: RefreshIndicator(
           onRefresh: _fetchStats,
           child: SingleChildScrollView(

@@ -84,6 +84,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             // Top Header: Settings

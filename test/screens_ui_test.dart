@@ -10,7 +10,9 @@ import 'package:smart_money/providers/theme_provider.dart';
 import 'package:smart_money/providers/transaction_provider.dart';
 import 'package:smart_money/constants/app_icons.dart';
 import 'package:smart_money/screens/accounts/create_account_screen.dart';
+import 'package:smart_money/screens/accounts/modify_account_order_screen.dart';
 import 'package:smart_money/screens/home/history_screen.dart';
+import 'package:smart_money/screens/settings/category_management_screen.dart';
 import 'package:smart_money/screens/settings/file_export_screen.dart';
 import 'package:smart_money/screens/settings/report_screen.dart';
 import 'package:smart_money/screens/settings/settings_screen.dart';
@@ -353,34 +355,115 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'StatsScreen and SettingsScreen disable bottom SafeArea so body extends behind FAB notch',
+    (tester) async {
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => ThemeProvider()),
+            ChangeNotifierProvider<TransactionProvider>.value(
+              value: _PickerMockTransactionProvider(),
+            ),
+          ],
+          child: const MaterialApp(home: StatsScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final statsSafeArea = tester.widget<SafeArea>(find.byType(SafeArea).first);
+      expect(statsSafeArea.bottom, isFalse);
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => ThemeProvider()),
+            ChangeNotifierProvider<TransactionProvider>.value(
+              value: _PickerMockTransactionProvider(),
+            ),
+          ],
+          child: const MaterialApp(home: SettingsScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final settingsSafeArea = tester.widget<SafeArea>(
+        find.byType(SafeArea).first,
+      );
+      expect(settingsSafeArea.bottom, isFalse);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'CategoryManagementScreen renders compact reorderable list and updates category order',
+    (tester) async {
+      final mockTx = _PickerMockTransactionProvider();
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => ThemeProvider()),
+            ChangeNotifierProvider<TransactionProvider>.value(value: mockTx),
+          ],
+          child: const MaterialApp(home: CategoryManagementScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Categories'), findsOneWidget);
+      expect(find.byType(ReorderableListView), findsOneWidget);
+      expect(find.byIcon(Icons.drag_indicator_rounded), findsNWidgets(2));
+      expect(
+        tester.getTopLeft(find.text('Makanan')).dy,
+        lessThan(tester.getTopLeft(find.text('Minuman')).dy),
+      );
+
+      // Persist reordered category order and verify order flips in provider & form
+      await mockTx.updateCategoryOrder('expense', ['cat-2', 'cat-1']);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.getTopLeft(find.text('Minuman')).dy,
+        lessThan(tester.getTopLeft(find.text('Makanan')).dy),
+      );
+      expect(mockTx.getCategoriesByType('expense').first.name, 'Minuman');
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'ModifyAccountOrderScreen displays nested accounts inside each group for reordering',
+    (tester) async {
+      final mockTx = _PickerMockTransactionProvider();
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => ThemeProvider()),
+            ChangeNotifierProvider<TransactionProvider>.value(value: mockTx),
+          ],
+          child: const MaterialApp(home: ModifyAccountOrderScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Modify Account Order'), findsOneWidget);
+      expect(find.text('Cash'), findsOneWidget);
+      expect(find.text('Cash On Hand'), findsOneWidget);
+      expect(find.text('Cash On Gopay'), findsOneWidget);
+      expect(find.text('E-Wallet'), findsOneWidget);
+      expect(find.text('Shopee Pay'), findsOneWidget);
+      // 2 group drag handles + 3 nested account drag handles = 5
+      expect(find.byIcon(Icons.drag_indicator), findsNWidgets(5));
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 class _PickerMockTransactionProvider extends TransactionProvider {
-  @override
-  Future<void> loadData() async {}
-
-  @override
-  List<AccountModel> get accounts => [
-    AccountModel(
-      id: 'acc-1',
-      name: 'Cash On Hand',
-      balance: 250000,
-      type: 'cash',
-      icon: 'cash',
-      iconColor: '#4CAF50',
-    ),
-    AccountModel(
-      id: 'acc-2',
-      name: 'Cash On Gopay',
-      balance: 150000,
-      type: 'ewallet',
-      icon: 'cash',
-      iconColor: '#66BB6A',
-    ),
-  ];
-
-  @override
-  List<CategoryModel> getCategoriesByType(String type) => [
+  List<CategoryModel> _mockCats = [
     CategoryModel(
       id: 'cat-1',
       name: 'Makanan',
@@ -396,4 +479,72 @@ class _PickerMockTransactionProvider extends TransactionProvider {
       type: 'expense',
     ),
   ];
+
+  final List<AccountModel> _mockAccounts = [
+    AccountModel(
+      id: 'acc-1',
+      name: 'Cash On Hand',
+      balance: 250000,
+      type: 'cash',
+      icon: 'cash',
+      iconColor: '#4CAF50',
+    ),
+    AccountModel(
+      id: 'acc-2',
+      name: 'Cash On Gopay',
+      balance: 150000,
+      type: 'cash',
+      icon: 'cash',
+      iconColor: '#66BB6A',
+    ),
+    AccountModel(
+      id: 'acc-3',
+      name: 'Shopee Pay',
+      balance: 50000,
+      type: 'ewallet',
+      icon: 'wallet',
+      iconColor: '#FFA726',
+    ),
+  ];
+
+  @override
+  Future<void> loadData() async {}
+
+  @override
+  List<AccountModel> get accounts => _mockAccounts;
+
+  @override
+  List<AccountGroup> get groupedAccounts => [
+    AccountGroup(
+      title: 'Cash',
+      icon: 'cash',
+      color: '#4CAF50',
+      balance: 400000,
+      accounts: _mockAccounts.where((a) => a.type == 'cash').toList(),
+    ),
+    AccountGroup(
+      title: 'E-Wallet',
+      icon: 'wallet',
+      color: '#FFA726',
+      balance: 50000,
+      accounts: _mockAccounts.where((a) => a.type == 'ewallet').toList(),
+    ),
+  ];
+
+  @override
+  List<CategoryModel> getCategoriesByType(String type) =>
+      _mockCats.where((c) => c.type == type).toList();
+
+  @override
+  Future<void> updateCategoryOrder(
+    String type,
+    List<String> orderedTypeIds,
+  ) async {
+    final map = {for (final c in _mockCats) c.id: c};
+    _mockCats = [
+      for (final id in orderedTypeIds)
+        if (map[id] != null) map[id]!,
+    ];
+    notifyListeners();
+  }
 }
