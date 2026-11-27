@@ -399,12 +399,57 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                                 ),
                           label: Text(
                             backup.isBackingUp
-                                ? 'Mengunggah...'
+                                ? 'Mengunggah... ${(backup.backupProgress * 100).round()}%'
                                 : 'Backup ke Google Drive',
                             style: const TextStyle(fontSize: 13.5),
                           ),
                         ),
                       ),
+                      if (backup.isBackingUp) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                backup.backupStatusMessage.isNotEmpty
+                                    ? backup.backupStatusMessage
+                                    : 'Menyiapkan backup...',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${(backup.backupProgress * 100).round()}%',
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: LinearProgressIndicator(
+                            value: backup.backupProgress > 0
+                                ? backup.backupProgress
+                                : null,
+                            minHeight: 7,
+                            backgroundColor:
+                                AppColors.primary.withOpacity(0.14),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       const Text(
                         'Jadwal Backup Otomatis',

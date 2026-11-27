@@ -406,6 +406,7 @@ class GoogleDriveService {
     String mimeType = 'application/zip',
     bool pruneOldSnapshots = true,
     bool interactive = true,
+    void Function(int sentBytes, int totalBytes)? onSendProgress,
   }) async {
     final token = await _getAccessToken(interactive: interactive);
     const boundary = 'smart_money_drive_multipart_boundary_v1';
@@ -427,21 +428,56 @@ class GoogleDriveService {
     bodyBuilder.add(bytes);
     bodyBuilder.add(utf8.encode('\r\n--$boundary--\r\n'));
 
+    final payload = bodyBuilder.takeBytes();
+    final totalBytes = payload.length;
+
     final uri = Uri.parse(
       'https://www.googleapis.com/upload/drive/v3/files'
       '?uploadType=multipart&fields=id,name,size,createdTime,modifiedTime,appProperties',
     );
 
-    final response = await http
-        .post(
-          uri,
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'multipart/related; boundary=$boundary',
-          },
-          body: bodyBuilder.takeBytes(),
-        )
-        .timeout(const Duration(seconds: 60));
+    final http.Response response;
+    if (onSendProgress == null) {
+      response = await http
+          .post(
+            uri,
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'multipart/related; boundary=$boundary',
+            },
+            body: payload,
+          )
+          .timeout(const Duration(seconds: 60));
+    } else {
+      final client = http.Client();
+      try {
+        final request = http.StreamedRequest('POST', uri)
+          ..headers['Authorization'] = 'Bearer $token'
+          ..headers['Content-Type'] = 'multipart/related; boundary=$boundary'
+          ..contentLength = totalBytes;
+
+        final responseFuture =
+            request.send().then(http.Response.fromStream);
+
+        const chunkSize = 32 * 1024;
+        int sent = 0;
+        onSendProgress(0, totalBytes);
+        while (sent < totalBytes) {
+          final end = (sent + chunkSize < totalBytes)
+              ? sent + chunkSize
+              : totalBytes;
+          request.sink.add(Uint8List.sublistView(payload, sent, end));
+          sent = end;
+          onSendProgress(sent, totalBytes);
+          await Future<void>.delayed(Duration.zero);
+        }
+        await request.sink.close();
+
+        response = await responseFuture.timeout(const Duration(seconds: 60));
+      } finally {
+        client.close();
+      }
+    }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw GoogleDriveException(

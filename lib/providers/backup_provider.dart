@@ -18,6 +18,8 @@ class BackupProvider extends ChangeNotifier {
   bool _isBackingUp = false;
   bool _isRestoring = false;
   bool _isLoadingDriveList = false;
+  double _backupProgress = 0.0;
+  String _backupStatusMessage = '';
 
   GoogleAccountProfile? get account => _account;
   bool get isSignedIn => _account != null;
@@ -34,6 +36,8 @@ class BackupProvider extends ChangeNotifier {
   bool get isBackingUp => _isBackingUp;
   bool get isRestoring => _isRestoring;
   bool get isLoadingDriveList => _isLoadingDriveList;
+  double get backupProgress => _backupProgress;
+  String get backupStatusMessage => _backupStatusMessage;
 
   BackupProvider({bool autoLoad = true}) {
     if (autoLoad) {
@@ -133,13 +137,28 @@ class BackupProvider extends ChangeNotifier {
       throw Exception('Proses backup sedang berjalan.');
     }
     _isBackingUp = true;
+    _backupProgress = 0.0;
+    _backupStatusMessage = 'Menghubungkan ke Google Drive...';
     notifyListeners();
+
+    int lastNotifiedPercent = -1;
+    String lastNotifiedStatus = _backupStatusMessage;
 
     try {
       _account ??= await GoogleDriveService.instance.signInInteractive();
       final result = await BackupSyncService.instance.backupToGoogleDrive(
         includeReceipts: _includeReceipts,
         interactive: true,
+        onProgress: (p) {
+          final pct = p.percent;
+          if (pct != lastNotifiedPercent || p.statusText != lastNotifiedStatus) {
+            lastNotifiedPercent = pct;
+            lastNotifiedStatus = p.statusText;
+            _backupProgress = p.progress.clamp(0.0, 1.0);
+            _backupStatusMessage = p.statusText;
+            notifyListeners();
+          }
+        },
       );
       final config = await BackupSyncService.instance.loadConfig();
       _lastBackupAt = config.lastBackupAt ?? DateTime.now();
@@ -150,6 +169,8 @@ class BackupProvider extends ChangeNotifier {
       return result;
     } finally {
       _isBackingUp = false;
+      _backupProgress = 0.0;
+      _backupStatusMessage = '';
       notifyListeners();
     }
   }

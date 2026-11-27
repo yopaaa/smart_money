@@ -22,6 +22,9 @@ class MockBackupProvider extends ChangeNotifier implements BackupProvider {
   final DateTime? _lastBackupAt;
   final int? _lastBackupSizeBytes;
   final List<DriveBackupFile> _driveBackups;
+  final bool _isBackingUp;
+  final double _backupProgress;
+  final String _backupStatusMessage;
 
   MockBackupProvider({
     GoogleAccountProfile? account,
@@ -32,6 +35,9 @@ class MockBackupProvider extends ChangeNotifier implements BackupProvider {
     DateTime? lastBackupAt,
     int? lastBackupSizeBytes,
     List<DriveBackupFile> driveBackups = const [],
+    bool isBackingUp = false,
+    double backupProgress = 0.0,
+    String backupStatusMessage = '',
   })  : _account = account,
         _serverClientId = serverClientId,
         _schedule = schedule,
@@ -39,7 +45,10 @@ class MockBackupProvider extends ChangeNotifier implements BackupProvider {
         _includeReceipts = includeReceipts,
         _lastBackupAt = lastBackupAt,
         _lastBackupSizeBytes = lastBackupSizeBytes,
-        _driveBackups = driveBackups;
+        _driveBackups = driveBackups,
+        _isBackingUp = isBackingUp,
+        _backupProgress = backupProgress,
+        _backupStatusMessage = backupStatusMessage;
 
   @override
   GoogleAccountProfile? get account => _account;
@@ -75,7 +84,13 @@ class MockBackupProvider extends ChangeNotifier implements BackupProvider {
   bool get isSigningIn => false;
 
   @override
-  bool get isBackingUp => false;
+  bool get isBackingUp => _isBackingUp;
+
+  @override
+  double get backupProgress => _backupProgress;
+
+  @override
+  String get backupStatusMessage => _backupStatusMessage;
 
   @override
   bool get isRestoring => false;
@@ -360,15 +375,83 @@ void main() {
     });
 
     testWidgets(
-        'WelcomeScreen RESTORE DATA opens Google Drive & Local restore options',
+        'WelcomeScreen requires Google Sign-In above GET STARTED before showing Drive restore',
         (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
+      // 1. Signed-out state: shows "Masuk dengan Google" above GET STARTED,
+      // and RESTORE DATA only shows local file restore (not Google Drive).
+      final signedOutBackup = MockBackupProvider(account: null);
+      final mockTx = MockSimpleTxProvider();
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => ThemeProvider()),
+            ChangeNotifierProvider<TransactionProvider>.value(value: mockTx),
+            ChangeNotifierProvider<BackupProvider>.value(
+              value: signedOutBackup,
+            ),
+          ],
+          child: const MaterialApp(home: WelcomeScreen()),
+        ),
+      );
+
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('Masuk dengan Google'), findsOneWidget);
+      expect(find.text('GET STARTED'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Masuk dengan Google')).dy,
+        lessThan(tester.getTopLeft(find.text('GET STARTED')).dy),
+      );
+
+      await tester.tap(find.text('RESTORE DATA'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Restore dari File Lokal'), findsWidgets);
+      expect(find.text('Restore dari Google Drive'), findsNothing);
+      Navigator.pop(tester.element(find.text('Restore dari File Lokal').last));
+      await tester.pumpAndSettle();
+
+      // 2. Signed-in state: shows Google banner + Restore Drive above GET STARTED
+      // and RESTORE DATA includes Restore dari Google Drive.
+      final signedInBackup = MockBackupProvider(account: sampleProfile);
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => ThemeProvider()),
+            ChangeNotifierProvider<TransactionProvider>.value(value: mockTx),
+            ChangeNotifierProvider<BackupProvider>.value(value: signedInBackup),
+          ],
+          child: const MaterialApp(home: WelcomeScreen()),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('Yopa Pratama'), findsOneWidget);
+      expect(find.text('Restore Drive'), findsOneWidget);
+
+      await tester.tap(find.text('RESTORE DATA'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pilih Sumber Restore'), findsOneWidget);
+      expect(find.text('Restore dari Google Drive'), findsOneWidget);
+      expect(find.text('Restore dari File Lokal'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+        'BackupRestoreScreen renders live upload progress bar & percentage while backing up',
+        (tester) async {
       final mockBackup = MockBackupProvider(
         account: sampleProfile,
+        isBackingUp: true,
+        backupProgress: 0.42,
+        backupStatusMessage: 'Mengunggah foto 5/12...',
       );
       final mockTx = MockSimpleTxProvider();
 
@@ -379,19 +462,16 @@ void main() {
             ChangeNotifierProvider<TransactionProvider>.value(value: mockTx),
             ChangeNotifierProvider<BackupProvider>.value(value: mockBackup),
           ],
-          child: const MaterialApp(home: WelcomeScreen()),
+          child: const MaterialApp(home: BackupRestoreScreen()),
         ),
       );
 
-      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump();
 
-      expect(find.text('RESTORE DATA'), findsOneWidget);
-      await tester.tap(find.text('RESTORE DATA'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Pilih Sumber Restore'), findsOneWidget);
-      expect(find.text('Restore dari Google Drive'), findsOneWidget);
-      expect(find.text('Restore dari File Lokal'), findsOneWidget);
+      expect(find.text('Mengunggah... 42%'), findsOneWidget);
+      expect(find.text('Mengunggah foto 5/12...'), findsOneWidget);
+      expect(find.text('42%'), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

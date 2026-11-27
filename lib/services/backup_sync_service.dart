@@ -57,6 +57,18 @@ class DriveSyncResult {
   });
 }
 
+class BackupProgress {
+  final double progress;
+  final String statusText;
+
+  const BackupProgress({
+    required this.progress,
+    required this.statusText,
+  });
+
+  int get percent => (progress.clamp(0.0, 1.0) * 100).round();
+}
+
 class BackupSyncConfig {
   final BackupSchedule schedule;
   final bool wifiOnly;
@@ -430,7 +442,17 @@ class BackupSyncService {
   /// Incrementally uploads only NEW receipt photos that do not exist in Drive yet.
   Future<({int newUploaded, int totalLocal})> syncReceiptsIncrementally({
     required bool interactive,
+    void Function(BackupProgress progress)? onProgress,
+    double startProgress = 0.05,
+    double endProgress = 0.85,
   }) async {
+    onProgress?.call(
+      BackupProgress(
+        progress: startProgress,
+        statusText: 'Memeriksa daftar foto di Drive...',
+      ),
+    );
+
     final transactions = await DatabaseHelper.instance.getTransactions();
     final Map<String, File> localFilesByName = {};
 
@@ -456,10 +478,24 @@ class BackupSyncService {
       remoteSyncedReceipts: remoteReceipts,
     );
 
+    if (missingNames.isEmpty) {
+      return (newUploaded: 0, totalLocal: localFilesByName.length);
+    }
+
+    final span = (endProgress - startProgress).clamp(0.01, 1.0);
+    final totalMissing = missingNames.length;
     int uploadedCount = 0;
-    for (final baseName in missingNames) {
+
+    for (int i = 0; i < totalMissing; i++) {
+      final baseName = missingNames[i];
       final file = localFilesByName[baseName];
       if (file == null) continue;
+
+      final sliceStart = startProgress + span * (i / totalMissing);
+      final sliceEnd = startProgress + span * ((i + 1) / totalMissing);
+      final label = 'Mengunggah foto ${i + 1}/$totalMissing...';
+
+      onProgress?.call(BackupProgress(progress: sliceStart, statusText: label));
       final imgBytes = await file.readAsBytes();
       await GoogleDriveService.instance.uploadBackupBytes(
         bytes: imgBytes,
@@ -470,6 +506,13 @@ class BackupSyncService {
         appProperties: {
           'kind': 'receipt',
           'receiptName': baseName,
+        },
+        onSendProgress: (sent, total) {
+          final ratio = total > 0 ? sent / total : 1.0;
+          final current = sliceStart + (sliceEnd - sliceStart) * ratio;
+          onProgress?.call(
+            BackupProgress(progress: current, statusText: label),
+          );
         },
       );
       uploadedCount++;
@@ -483,16 +526,38 @@ class BackupSyncService {
   Future<DriveSyncResult> backupToGoogleDrive({
     bool includeReceipts = true,
     bool interactive = true,
+    void Function(BackupProgress progress)? onProgress,
   }) async {
     int newReceiptsUploaded = 0;
     int totalReceiptsSynced = 0;
 
+    onProgress?.call(
+      const BackupProgress(
+        progress: 0.02,
+        statusText: 'Menyiapkan data backup...',
+      ),
+    );
+
     if (includeReceipts) {
-      final syncRes =
-          await syncReceiptsIncrementally(interactive: interactive);
+      final syncRes = await syncReceiptsIncrementally(
+        interactive: interactive,
+        onProgress: onProgress,
+        startProgress: 0.05,
+        endProgress: 0.80,
+      );
       newReceiptsUploaded = syncRes.newUploaded;
       totalReceiptsSynced = syncRes.totalLocal;
     }
+
+    final dbPhaseStart = includeReceipts
+        ? (newReceiptsUploaded > 0 ? 0.82 : 0.55)
+        : 0.25;
+    onProgress?.call(
+      BackupProgress(
+        progress: dbPhaseStart,
+        statusText: 'Mengemas database...',
+      ),
+    );
 
     // Only package DB + metadata for Drive (photos are already synced separately!)
     final package = await createBackupPackage(
@@ -501,6 +566,14 @@ class BackupSyncService {
     );
     final dateStr = DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
     final fileName = 'smart_money_backup_$dateStr.smbak';
+
+    const dbUploadEnd = 0.96;
+    onProgress?.call(
+      BackupProgress(
+        progress: dbPhaseStart + 0.03,
+        statusText: 'Mengunggah database ke Drive...',
+      ),
+    );
 
     final uploaded = await GoogleDriveService.instance.uploadBackupBytes(
       bytes: package.bytes,
@@ -515,12 +588,37 @@ class BackupSyncService {
         'receiptCount': package.receiptCount.toString(),
         'newReceiptsUploaded': newReceiptsUploaded.toString(),
       },
+      onSendProgress: (sent, total) {
+        final ratio = total > 0 ? sent / total : 1.0;
+        final uploadStart = dbPhaseStart + 0.03;
+        final current = uploadStart + (dbUploadEnd - uploadStart) * ratio;
+        onProgress?.call(
+          BackupProgress(
+            progress: current,
+            statusText: 'Mengunggah database ke Drive...',
+          ),
+        );
+      },
+    );
+
+    onProgress?.call(
+      const BackupProgress(
+        progress: 0.98,
+        statusText: 'Menyelesaikan sinkronisasi...',
+      ),
     );
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     await DatabaseHelper.instance.saveSetting(settingLastBackupAtKey, nowMs);
     await DatabaseHelper.instance
         .saveSetting(settingLastBackupSizeKey, package.bytes.length);
+
+    onProgress?.call(
+      const BackupProgress(
+        progress: 1.0,
+        statusText: 'Backup selesai!',
+      ),
+    );
 
     return DriveSyncResult(
       file: uploaded,
