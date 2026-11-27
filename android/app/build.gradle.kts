@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.smart_money"
+    namespace = "com.nlabs.smartmoney"
     compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
@@ -17,18 +17,24 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.smart_money"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        applicationId = "com.nlabs.smartmoney"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
+        manifestPlaceholders["appName"] = "Smart Money"
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".dev"
+            manifestPlaceholders["appName"] = "Smart Money Dev"
+        }
+        getByName("profile") {
+            applicationIdSuffix = ".dev"
+            manifestPlaceholders["appName"] = "Smart Money Dev"
+        }
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.

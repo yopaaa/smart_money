@@ -15,6 +15,7 @@ import 'currency_setting_screen.dart';
 import 'deleted_history_screen.dart';
 import 'file_export_screen.dart';
 import 'gemini_api_key_dialog.dart';
+import 'image_sync_screen.dart';
 import 'notification_settings_screen.dart';
 import 'report_screen.dart';
 import '../../providers/security_provider.dart';
@@ -335,6 +336,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(builder: (_) => const FileExportScreen()),
+                          );
+                        },
+                      ),
+                      Divider(height: 1, color: dividerColor),
+                      _buildNavigationItem(
+                        title: 'Export Image',
+                        subtitle: 'Sinkron & restore foto (/sdcard/Pictures/SmartMoney)',
+                        titleColor: itemTitleColor,
+                        subtitleColor: subtitleColor,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const ImageSyncScreen()),
                           );
                         },
                       ),
